@@ -11225,6 +11225,21 @@ renderGate('checking');
   btn.onmouseleave = ()=>{ btn.style.background = 'transparent'; btn.style.color = '#c3d6ec'; };
   btn.onclick = ()=>{ closeMobileSidebar(); gateSignOut(); };
   foot.insertAdjacentElement('afterend', btn);
+
+  // Legal links (Accessibility & Privacy Policy)
+  const legalLinks = document.createElement('div');
+  legalLinks.id = 'sideLegalLinks';
+  legalLinks.style.cssText = 'display:flex;gap:12px;justify-content:center;padding:0 12px 10px;';
+  ['Accessibility|crm-accessibility.html','Privacy Policy|crm-privacy.html'].forEach(pair => {
+    const [label, href] = pair.split('|');
+    const a = document.createElement('a');
+    a.href = href; a.textContent = label;
+    a.style.cssText = 'font-size:11px;color:rgba(195,214,236,.6);text-decoration:none;';
+    a.onmouseenter = ()=>{ a.style.color='#c3d6ec'; };
+    a.onmouseleave = ()=>{ a.style.color='rgba(195,214,236,.6)'; };
+    legalLinks.appendChild(a);
+  });
+  btn.insertAdjacentElement('afterend', legalLinks);
 })();
 
 // Sync status indicator + JSON export/import (added after auth gate opens via addSyncUI())
