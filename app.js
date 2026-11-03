@@ -3710,7 +3710,7 @@ function renderTeamDirectory(){
         <div style="display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); ${c.companyId?'cursor:pointer;':''}" ${c.companyId?`onclick="openEditCompany('${c.companyId}')"`:''}>
           <div style="display:flex; align-items:center; gap:10px;">
             <div style="width:30px; height:30px; border-radius:50%; overflow:hidden; background:var(--teal-solid); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              ${c.avatar ? `<img src="${c.avatar}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="color:#fff; font-weight:700; font-size:11px;">${esc(initials(c.name))}</span>`}
+              ${(c.avatar && isSafeDataUrl(c.avatar)) ? `<img src="${c.avatar}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="color:#fff; font-weight:700; font-size:11px;">${esc(initials(c.name))}</span>`}
             </div>
             <div><b style="font-size:13px;">${esc(c.name)}</b> <span style="font-size:12.5px; color:var(--slate);">· ${c.type}${c.detail?' · '+c.detail:''}</span></div>
           </div>
@@ -4024,7 +4024,7 @@ function renderTrainingView(){
           <div class="role-user-row">
             <div>
               <div class="ru-name">${esc(c.name)}</div>
-              <div class="ru-sub">${c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener" style="color:var(--teal-text); font-weight:600;">Take this course ↗</a> · ` : ''}${completedCount} team member${completedCount===1?'':'s'} completed</div>
+              <div class="ru-sub">${c.url ? `<a href="${safeHref(c.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--teal-text); font-weight:600;">Take this course ↗</a> · ` : ''}${completedCount} team member${completedCount===1?'':'s'} completed</div>
             </div>
             <select onchange="setOptionalTrainingStatus('${c.id}', this.value)" style="padding:7px 10px; border-radius:7px; border:1px solid var(--line); font-size:12px; font-weight:700;">
               <option value="not_started" ${status==='not_started'?'selected':''}>Not Started</option>
@@ -5453,7 +5453,7 @@ function renderContentApprovalView(){
         <div class="feed-title" onclick="openEditContent('${i.id}')">${esc(i.title || type.label)}</div>
         ${i.description ? `<div class="feed-desc">${esc(i.description)}</div>` : ''}
         ${i.caption ? `<div class="feed-caption">"${esc(i.caption)}"</div>` : ''}
-        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${escJs(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
+        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.filter(u=>isSafeHttpUrl(u)||isSafeDataUrl(u)).map(u=>`<img src="${esc(u)}" onclick="window.open('${escJs(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
         ${i.mediaUrl ? `<a class="feed-media" href="${safeHref(i.mediaUrl)}" target="_blank" rel="noopener noreferrer">${iconPhone()} View media</a>` : ''}
         <div style="display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;">
           <button class="btn-small" style="background:var(--green-soft); color:var(--green-text); border-color:var(--green);" onclick="setContentApprovalStatus('${i.id}','Approved')">${iconCheck()} Approve</button>
@@ -6126,7 +6126,7 @@ function renderServiceCatalogView(){
     </div>
     <div class="view-chips">
       <span class="view-chip ${serviceCatalogFilter==='all'?'active':''}" onclick="setServiceCatalogFilter('all')">All</span>
-      ${cats.map(c=>`<span class="view-chip ${serviceCatalogFilter===c?'active':''}" onclick="setServiceCatalogFilter('${esc(c).replace(/'/g,"\\'")}')">${esc(c)}</span>`).join('')}
+      ${cats.map(c=>`<span class="view-chip ${serviceCatalogFilter===c?'active':''}" onclick="setServiceCatalogFilter('${escJs(c)}')">${esc(c)}</span>`).join('')}
     </div>
     <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:14px;">
       ${rows.length ? rows.map(s=>`
@@ -6291,7 +6291,7 @@ function renderBrandGuidelinesView(){
     <div class="panel" style="padding:22px;">
       <div style="font-size:12px; font-weight:700; color:var(--slate); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px;">Social Profiles</div>
       <div style="display:flex; flex-wrap:wrap; gap:8px;">
-        ${Object.entries(bg.social||{}).map(([k,url])=>`<a href="${esc(url)}" target="_blank" rel="noopener" class="btn-small" style="text-decoration:none;">${esc(k.charAt(0).toUpperCase()+k.slice(1))} ↗</a>`).join('')}
+        ${Object.entries(bg.social||{}).map(([k,url])=>`<a href="${safeHref(url)}" target="_blank" rel="noopener noreferrer" class="btn-small" style="text-decoration:none;">${esc(k.charAt(0).toUpperCase()+k.slice(1))} ↗</a>`).join('')}
       </div>
     </div>
   `;
@@ -7833,7 +7833,7 @@ function renderContentFeed(customers){
         <div class="feed-title" onclick="openEditContent('${i.id}')">${esc(i.title || type.label)}</div>
         ${i.description ? `<div class="feed-desc">${esc(i.description)}</div>` : ''}
         ${i.caption ? `<div class="feed-caption">"${esc(i.caption)}"</div>` : ''}
-        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${escJs(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
+        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.filter(u=>isSafeHttpUrl(u)||isSafeDataUrl(u)).map(u=>`<img src="${esc(u)}" onclick="window.open('${escJs(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
         ${i.mediaUrl ? `<a class="feed-media" href="${safeHref(i.mediaUrl)}" target="_blank" rel="noopener noreferrer">${iconPhone()} View media</a>` : ''}
         ${(!i.approvalStatus || i.approvalStatus==='Not Submitted') ? `
         <div style="margin-bottom:8px;"><button class="btn-small" onclick="submitContentForApproval('${i.id}')">${iconUpload()} Submit for Approval</button></div>` : ''}
@@ -8946,7 +8946,7 @@ function modalFormHTML(c){
       <div class="contact-links">
         ${c.phone ? `<a class="contact-link" href="${callHref(c.phone)}">${iconPhone()} ${esc(c.phone)}</a>` : ''}
         ${c.email ? `<a class="contact-link" href="mailto:${esc(c.email)}">${iconMail()} ${esc(c.email)}</a>` : ''}
-        ${c.email ? `<span class="contact-link" style="cursor:pointer;" onclick="openComposeEmailModal('${esc(c.email).replace(/'/g,"\\'")}','','')">${iconMail()} Send via Outlook</span>` : ''}
+        ${c.email ? `<span class="contact-link" style="cursor:pointer;" onclick="openComposeEmailModal('${escJs(c.email)}','','')">${iconMail()} Send via Outlook</span>` : ''}
       </div>` : ''}
       ${isEdit ? `
       <div style="border:1px solid var(--line); border-radius:9px; padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -10352,7 +10352,7 @@ function settingsIntegrationsHTML(){
                 </select>
                 ` : ''}
                 <button class="btn-small" onclick="denyAccountRequest('${r.user_id}')">Deny</button>
-                <button class="btn-primary" style="padding:6px 12px; font-size:12px;" onclick="${r.role==='client' ? `approveClientRequest('${r.user_id}','${esc(r.email||'').replace(/'/g,"\\'")}')` : `approveAgencyRequest('${r.user_id}')`}">Approve</button>
+                <button class="btn-primary" style="padding:6px 12px; font-size:12px;" onclick="${r.role==='client' ? `approveClientRequest('${r.user_id}','${escJs(r.email||'')}')` : `approveAgencyRequest('${r.user_id}')`}">Approve</button>
               </div>
             </div>
           </div>`).join('') : `<p style="font-size:12px; color:var(--slate);">Nothing waiting on you right now.</p>`}
