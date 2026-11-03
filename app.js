@@ -175,8 +175,144 @@ async function checkPortalUpdates(){
 
 /* ===================== DATA LAYER (no AI, pure storage + math) ===================== */
 const STORAGE_KEY = 'favze-crm-contacts';
+const SYNC_REV_KEY  = 'favze-crm-sync-rev';
+const SYNC_DIRTY_KEY = 'favze-crm-sync-dirty';
 let DATA = { contacts: [] };
 let currentView = window.FAVZE_VIEW || 'dashboard';
+// Cloud-sync state
+let syncReady = false;   // true once the gate has opened and auth is confirmed
+let knownRev  = 0;       // last rev we read from or wrote to crm_data
+let dirtySync = false;   // local has unsaved changes relative to knownRev
+let syncDebounceTimer = null;
+
+// Persist and restore rev/dirty across page navigations
+function loadSyncState(){
+  try{ const r = localStorage.getItem(SYNC_REV_KEY);  if(r!==null) knownRev  = Number(r); }catch(e){}
+  try{ const d = localStorage.getItem(SYNC_DIRTY_KEY); if(d!==null) dirtySync = d==='1'; }catch(e){}
+}
+function saveSyncState(){
+  try{ localStorage.setItem(SYNC_REV_KEY,  String(knownRev));  }catch(e){}
+  try{ localStorage.setItem(SYNC_DIRTY_KEY, dirtySync ? '1' : '0'); }catch(e){}
+}
+function setSyncStatus(msg, style){
+  // style: 'ok' | 'saving' | 'conflict' | 'offline'
+  const el = document.getElementById('crmSyncStatus');
+  if(!el) return;
+  el.textContent = msg;
+  const colors = { ok:'#6ee7b7', saving:'#93c5fd', conflict:'#fca5a5', offline:'#d1d5db' };
+  el.style.color = colors[style||'ok'] || '#c3d6ec';
+}
+
+async function pullRemote(){
+  if(!syncReady) return;
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  setSyncStatus('Syncing…', 'saving');
+  try{
+    const { data: rows, error } = await sb.from('crm_data').select('rev,data,updated_at').eq('id','main');
+    if(error){ setSyncStatus('Offline', 'offline'); return; }
+    if(!rows || rows.length===0){
+      // No remote row yet — push local data up
+      await pushRemote(true);
+      return;
+    }
+    const remote = rows[0];
+    const remoteRev = Number(remote.rev);
+    if(remoteRev === knownRev){
+      // Remote matches what we last knew — push only if local has changes
+      if(dirtySync){ await pushRemote(); } else { setSyncStatus('Synced', 'ok'); }
+      return;
+    }
+    if(remoteRev > knownRev){
+      if(!dirtySync){
+        // Remote is newer and local is clean — load remote
+        DATA = remote.data;
+        ensureDataShape();
+        knownRev = remoteRev; dirtySync = false; saveSyncState();
+        await localSave();
+        setSyncStatus('Synced', 'ok');
+        render();
+        return;
+      }
+      // Remote is newer AND local is dirty — conflict
+      setSyncStatus('Conflict — see banner', 'conflict');
+      showConflictBanner(remote);
+      return;
+    }
+    // knownRev > remoteRev — we are ahead; push
+    await pushRemote();
+  }catch(e){ console.error('pullRemote error', e); setSyncStatus('Offline', 'offline'); }
+}
+
+async function pushRemote(isInsert){
+  if(!syncReady) return;
+  const sb = getSupabaseClient();
+  if(!sb){ setSyncStatus('Offline', 'offline'); return; }
+  setSyncStatus('Saving…', 'saving');
+  const nextRev = knownRev + 1;
+  const { data: { user } } = await sb.auth.getUser();
+  const payload = { id:'main', data: DATA, rev: nextRev, updated_at: new Date().toISOString(), updated_by: user?.id };
+  let error;
+  if(isInsert){
+    ({ error } = await sb.from('crm_data').upsert(payload, { onConflict:'id' }));
+  } else {
+    ({ error } = await sb.from('crm_data').update({ data: DATA, rev: nextRev, updated_at: payload.updated_at, updated_by: payload.updated_by })
+        .eq('id','main').eq('rev', knownRev));
+    if(!error){
+      // If 0 rows matched (someone else updated concurrently), re-pull
+      const { count } = await sb.from('crm_data').select('rev',{count:'exact',head:true}).eq('id','main').eq('rev',nextRev);
+      if(count===0){ await pullRemote(); return; }
+    }
+  }
+  if(error){ console.error('pushRemote error', error); setSyncStatus('Offline', 'offline'); return; }
+  knownRev = nextRev; dirtySync = false; saveSyncState();
+  setSyncStatus('Saved', 'ok');
+}
+
+function schedulePush(){
+  if(!syncReady) return;
+  if(syncDebounceTimer) clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(()=>{ syncDebounceTimer=null; pushRemote(); }, 1500);
+}
+
+function ensureDataShape(){
+  if(!DATA.contacts) DATA.contacts = [];
+  if(!DATA.projects) DATA.projects = [];
+  if(!DATA.tasks) DATA.tasks = [];
+  if(!DATA.reminders) DATA.reminders = [];
+  if(!DATA.workflows) DATA.workflows = [];
+  if(!DATA.emailLog) DATA.emailLog = [];
+  if(!DATA.deals) DATA.deals = [];
+  if(!DATA.savedViews) DATA.savedViews = [];
+  if(!DATA.customFields) DATA.customFields = [];
+  if(!DATA.callLogs) DATA.callLogs = [];
+  if(!DATA.campaigns) DATA.campaigns = [];
+}
+
+async function localSave(){
+  const payload = JSON.stringify(DATA);
+  try{ await window.storage.set(STORAGE_KEY, payload, false); }catch(e){}
+}
+
+function showConflictBanner(remote){
+  let banner = document.getElementById('crmConflictBanner');
+  if(banner) return;
+  banner = document.createElement('div');
+  banner.id = 'crmConflictBanner';
+  banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:#b91c1c;color:#fff;padding:12px 20px;display:flex;align-items:center;gap:12px;font-size:14px;';
+  banner.innerHTML = `<span style="flex:1">Your local changes conflict with an update from another device. Keep which version?</span>
+    <button id="crmConflictKeepLocal" style="padding:6px 14px;border-radius:6px;border:none;background:#fff;color:#b91c1c;font-weight:700;cursor:pointer;">Keep mine</button>
+    <button id="crmConflictKeepRemote" style="padding:6px 14px;border-radius:6px;border:none;background:rgba(255,255,255,.2);color:#fff;font-weight:700;cursor:pointer;">Use other device</button>`;
+  document.body.prepend(banner);
+  document.getElementById('crmConflictKeepLocal').onclick = async ()=>{
+    banner.remove(); await pushRemote(true);
+  };
+  document.getElementById('crmConflictKeepRemote').onclick = async ()=>{
+    DATA = remote.data; ensureDataShape();
+    knownRev = Number(remote.rev); dirtySync = false; saveSyncState();
+    await localSave(); banner.remove(); setSyncStatus('Synced','ok'); render();
+  };
+}
 function pageFor(v){ return 'crm-'+v+'.html'; }
 const AFTER_KEY = 'favze-crm-after';
 function goToView(v, after){
@@ -457,11 +593,12 @@ function isOpenStage(id){ const s=getStage(id); return s && s.kind==='open'; }
 const DATA_VERSION = 'v2-real-data';
 
 async function loadData(){
+  loadSyncState();
   try{
     const versionRes = await getSafe(STORAGE_KEY + '-version');
     if(versionRes !== DATA_VERSION){
       DATA = { contacts: SEED, projects: [], tasks: [], reminders: [], workflows: [], emailLog: [], deals: [], savedViews: [], customFields: [], callLogs: [], campaigns: [] };
-      await saveData();
+      await saveData(true); // pre-auth seed — don't push to cloud
       await window.storage.set(STORAGE_KEY + '-version', DATA_VERSION, false);
     } else {
       const res = await window.storage.get(STORAGE_KEY, false);
@@ -479,7 +616,7 @@ async function loadData(){
     if(backup){
       DATA = JSON.parse(backup);
       showToast('Recovered changes that failed to save last time, saving them now');
-      await saveData();
+      await saveData(true); // pre-auth; cloud push happens in pullRemote() after gate
     }
   }catch(e){ console.error('Backup recovery failed', e); }
   // Migrate older saved data that predates newer sections, without touching existing contacts.
@@ -848,7 +985,7 @@ async function loadData(){
     DATA._dealsSeeded = true;
     migrated = true;
   }
-  if(migrated){ await saveData(); }
+  if(migrated){ await saveData(true); } // migration saves are pre-auth; don't push
   if(window.FAVZE_VIEW==='home'){ window.location.replace(pageFor(DATA.profile.defaultView || 'dashboard')); return; }
   applySettings();
   applyBranding();
@@ -862,7 +999,12 @@ async function loadData(){
   checkScheduledCampaigns();
   await restoreOutlookSession();
   await restoreAgencySupabaseSession();
-  await applyAuthGate();
+  const gateOpen = await applyAuthGate();
+  if(gateOpen){
+    syncReady = true;
+    await pullRemote();
+    addSyncUI();
+  }
   resetInactivityTimer();
   render();
   runAfterNavigation();
@@ -1118,23 +1260,24 @@ async function getSafe(key){
     return null;
   }
 }
-async function saveData(){
+async function saveData(skipSync){
   const payload = JSON.stringify(DATA);
   try{
     const result = await window.storage.set(STORAGE_KEY, payload, false);
     if(!result){ throw new Error('empty response'); }
-    // Save succeeded for real — clear any stale local backup so we don't confuse ourselves later.
     try{ localStorage.removeItem(STORAGE_KEY + '_backup'); }catch(e){}
   }catch(err){
     console.error('Storage error', err);
-    // The real save failed (platform-side issue, oversized payload, or a transient error).
-    // Don't let that silently lose changes — keep a local backup so nothing's gone even
-    // if this particular save didn't make it to real storage.
     let backedUp = false;
     try{ localStorage.setItem(STORAGE_KEY + '_backup', payload); backedUp = true; }catch(e){}
     showToast(backedUp
       ? 'Save failed, changes backed up locally. Try again or refresh once the issue clears.'
       : 'Save failed. Changes may not persist.');
+  }
+  // Mark dirty and schedule a cloud push (unless this is a pre-auth seed save)
+  if(!skipSync && syncReady){
+    dirtySync = true; saveSyncState();
+    schedulePush();
   }
 }
 
@@ -11077,5 +11220,71 @@ renderGate('checking');
   btn.onclick = ()=>{ closeMobileSidebar(); gateSignOut(); };
   foot.insertAdjacentElement('afterend', btn);
 })();
+
+// Sync status indicator + JSON export/import (added after auth gate opens via addSyncUI())
+function addSyncUI(){
+  if(document.getElementById('crmSyncStatus')) return;
+  const signOutBtn = document.getElementById('sideSignOut');
+  if(!signOutBtn) return;
+
+  // Status line
+  const status = document.createElement('div');
+  status.id = 'crmSyncStatus';
+  status.style.cssText = 'font-size:11px;text-align:center;padding:0 12px 6px;color:#6ee7b7;cursor:pointer;';
+  status.title = 'Click to sync now';
+  status.onclick = ()=>{ pullRemote(); };
+  signOutBtn.insertAdjacentElement('beforebegin', status);
+
+  // Export / Import row
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:6px;padding:0 12px 8px;';
+
+  const exportBtn = document.createElement('button');
+  exportBtn.type = 'button';
+  exportBtn.textContent = 'Export data';
+  exportBtn.style.cssText = 'flex:1;padding:6px 0;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:transparent;color:#c3d6ec;font-size:11px;cursor:pointer;';
+  exportBtn.onmouseenter = ()=>{ exportBtn.style.background='rgba(255,255,255,.08)'; exportBtn.style.color='#fff'; };
+  exportBtn.onmouseleave = ()=>{ exportBtn.style.background='transparent'; exportBtn.style.color='#c3d6ec'; };
+  exportBtn.onclick = ()=>{
+    const blob = new Blob([JSON.stringify(DATA, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'favze-crm-backup-' + new Date().toISOString().slice(0,10) + '.json';
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  const importBtn = document.createElement('button');
+  importBtn.type = 'button';
+  importBtn.textContent = 'Import data';
+  importBtn.style.cssText = 'flex:1;padding:6px 0;border:1px solid rgba(255,255,255,.18);border-radius:6px;background:transparent;color:#c3d6ec;font-size:11px;cursor:pointer;';
+  importBtn.onmouseenter = ()=>{ importBtn.style.background='rgba(255,255,255,.08)'; importBtn.style.color='#fff'; };
+  importBtn.onmouseleave = ()=>{ importBtn.style.background='transparent'; importBtn.style.color='#c3d6ec'; };
+  importBtn.onclick = ()=>{
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.onchange = async (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      try{
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        if(!parsed.contacts){ showToast('That file does not look like a Favze CRM backup.'); return; }
+        if(!confirm('Replace ALL current CRM data with this backup? This cannot be undone.')) return;
+        DATA = parsed; ensureDataShape();
+        await saveData();
+        showToast('Data imported. Syncing to cloud…');
+        knownRev = 0; dirtySync = true; saveSyncState();
+        await pushRemote(true);
+        render();
+      }catch(err){ showToast('Import failed: ' + err.message); }
+    };
+    inp.click();
+  };
+
+  row.appendChild(exportBtn);
+  row.appendChild(importBtn);
+  signOutBtn.insertAdjacentElement('beforebegin', row);
+
+  setSyncStatus('Syncing…', 'saving');
+}
 
 loadData();
