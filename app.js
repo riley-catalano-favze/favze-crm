@@ -178,6 +178,17 @@ const STORAGE_KEY = 'favze-crm-contacts';
 const SYNC_REV_KEY  = 'favze-crm-sync-rev';
 const SYNC_DIRTY_KEY = 'favze-crm-sync-dirty';
 
+/* ---- clickjacking protection ---- */
+(function(){
+  if(window.top !== window.self){
+    try{ window.top.location = window.self.location; }catch(e){ document.body.style.display='none'; }
+  }
+})();
+
+/* ---- safe data URL validator ---- */
+function isSafeDataUrl(s){ return typeof s === 'string' && /^data:image\/(png|jpeg|jpg|gif|webp|svg\+xml);base64,/i.test(s); }
+function isSafeHttpUrl(s){ return typeof s === 'string' && /^https?:\/\//i.test(s); }
+
 /* ---- idle session timeout (30 minutes) ---- */
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 let _idleTimer = null;
@@ -1215,8 +1226,9 @@ async function toggleNavHide(key, checked){
 function applyBranding(){
   const markEl = document.getElementById('sidebarMark') || document.querySelector('.mark');
   if(!markEl) return;
-  const src = DATA.settings.logoDataUrl || FAVZE_MARK_DATAURI;
-  const alt = DATA.settings.logoDataUrl ? 'Company logo' : 'Favze logo mark';
+  const safeLogoUrl = DATA.settings.logoDataUrl && isSafeDataUrl(DATA.settings.logoDataUrl) ? DATA.settings.logoDataUrl : null;
+  const src = safeLogoUrl || FAVZE_MARK_DATAURI;
+  const alt = safeLogoUrl ? 'Company logo' : 'Favze logo mark';
   markEl.innerHTML = `<img src="${src}" alt="${alt}">`;
 }
 /* ===================== IMAGE UPLOAD COMPRESSION ===================== */
@@ -1269,7 +1281,7 @@ function renderProfile(){
   document.getElementById('profileName').textContent = DATA.profile.name;
   document.getElementById('profileRole').textContent = DATA.profile.role;
   const avatarEl = document.getElementById('profileAvatar');
-  if(DATA.profile.avatarDataUrl){
+  if(DATA.profile.avatarDataUrl && isSafeDataUrl(DATA.profile.avatarDataUrl)){
     avatarEl.innerHTML = `<img src="${DATA.profile.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
   } else {
     avatarEl.textContent = initials(DATA.profile.name);
@@ -3713,7 +3725,7 @@ function renderTeamDirectory(){
         <div class="panel" style="padding:18px;">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
             <div style="width:44px; height:44px; border-radius:50%; overflow:hidden; background:var(--teal-solid); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-              ${u.avatarDataUrl ? `<img src="${u.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="color:#fff; font-weight:700; font-size:15px;">${esc(initials(u.name))}</span>`}
+              ${(u.avatarDataUrl && isSafeDataUrl(u.avatarDataUrl)) ? `<img src="${u.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="color:#fff; font-weight:700; font-size:15px;">${esc(initials(u.name))}</span>`}
             </div>
             <div>
               <div style="font-weight:700; font-size:14px;">${esc(u.name)}${isUserOutToday(u.id)?' <span style="color:var(--red-text); font-size:10.5px; font-weight:700;">· Out</span>':''}</div>
@@ -3780,7 +3792,7 @@ function orgCardHTML(u){
   const role = DATA.roles.find(r=>r.id===u.roleId);
   return `
     <div class="org-card" onclick="switchView('settings', {t:'settingsTab', v:'users'});" style="cursor:pointer;" title="Edit in Settings → Users">
-      <div class="org-avatar">${u.avatarDataUrl ? `<img src="${u.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">` : esc(initials(u.name))}</div>
+      <div class="org-avatar">${(u.avatarDataUrl && isSafeDataUrl(u.avatarDataUrl)) ? `<img src="${u.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">` : esc(initials(u.name))}</div>
       <div class="org-name">${esc(u.name)}</div>
       <div class="org-role">${role?esc(role.name):esc(u.department||'No role')}</div>
     </div>`;
@@ -5441,8 +5453,8 @@ function renderContentApprovalView(){
         <div class="feed-title" onclick="openEditContent('${i.id}')">${esc(i.title || type.label)}</div>
         ${i.description ? `<div class="feed-desc">${esc(i.description)}</div>` : ''}
         ${i.caption ? `<div class="feed-caption">"${esc(i.caption)}"</div>` : ''}
-        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${esc(u)}','_blank')" alt="Content photo">`).join('')}</div>` : ''}
-        ${i.mediaUrl ? `<a class="feed-media" href="${esc(i.mediaUrl)}" target="_blank" rel="noopener">${iconPhone()} View media</a>` : ''}
+        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${esc(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
+        ${i.mediaUrl ? `<a class="feed-media" href="${esc(i.mediaUrl)}" target="_blank" rel="noopener noreferrer">${iconPhone()} View media</a>` : ''}
         <div style="display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;">
           <button class="btn-small" style="background:var(--green-soft); color:var(--green-text); border-color:var(--green);" onclick="setContentApprovalStatus('${i.id}','Approved')">${iconCheck()} Approve</button>
           <button class="btn-small" style="background:var(--amber-soft); color:var(--amber-text); border-color:var(--amber);" onclick="setContentApprovalStatus('${i.id}','Revisions Requested')">Request Revisions</button>
@@ -5457,7 +5469,7 @@ function renderContentApprovalView(){
             const cu = DATA.users.find(u=>u.id===c.userId);
             const displayName = c.fromPortal ? (c.portalAuthor||'Client') + ' (Portal)' : (cu?cu.name:'Team member');
             return `<div class="feed-comment">
-              <div class="fc-avatar" style="${c.fromPortal?'background:var(--teal-solid); color:#fff; display:flex; align-items:center; justify-content:center;':''}">${cu && cu.avatarDataUrl ? `<img src="${cu.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">` : esc(initials(displayName))}</div>
+              <div class="fc-avatar" style="${c.fromPortal?'background:var(--teal-solid); color:#fff; display:flex; align-items:center; justify-content:center;':''}">${cu && cu.avatarDataUrl && isSafeDataUrl(cu.avatarDataUrl) ? `<img src="${cu.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">` : esc(initials(displayName))}</div>
               <div class="fc-body"><div class="fc-name">${esc(displayName)}</div><div class="fc-text">${esc(c.text)}</div></div>
             </div>`;
           }).join('')}
@@ -7820,8 +7832,8 @@ function renderContentFeed(customers){
         <div class="feed-title" onclick="openEditContent('${i.id}')">${esc(i.title || type.label)}</div>
         ${i.description ? `<div class="feed-desc">${esc(i.description)}</div>` : ''}
         ${i.caption ? `<div class="feed-caption">"${esc(i.caption)}"</div>` : ''}
-        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${esc(u)}','_blank')" alt="Content photo">`).join('')}</div>` : ''}
-        ${i.mediaUrl ? `<a class="feed-media" href="${esc(i.mediaUrl)}" target="_blank" rel="noopener">${iconPhone()} View media</a>` : ''}
+        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${esc(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
+        ${i.mediaUrl ? `<a class="feed-media" href="${esc(i.mediaUrl)}" target="_blank" rel="noopener noreferrer">${iconPhone()} View media</a>` : ''}
         ${(!i.approvalStatus || i.approvalStatus==='Not Submitted') ? `
         <div style="margin-bottom:8px;"><button class="btn-small" onclick="submitContentForApproval('${i.id}')">${iconUpload()} Submit for Approval</button></div>` : ''}
         ${i.approvalStatus==='Pending Review' || i.approvalStatus==='Revisions Requested' ? `
@@ -7841,7 +7853,7 @@ function renderContentFeed(customers){
             const cu = DATA.users.find(u=>u.id===c.userId);
             const displayName = c.fromPortal ? (c.portalAuthor||'Client') + ' (Portal)' : (cu?cu.name:'Team member');
             return `<div class="feed-comment">
-              <div class="fc-avatar" style="${c.fromPortal?'background:var(--teal-solid); color:#fff; display:flex; align-items:center; justify-content:center;':''}">${cu && cu.avatarDataUrl ? `<img src="${cu.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">` : esc(initials(displayName))}</div>
+              <div class="fc-avatar" style="${c.fromPortal?'background:var(--teal-solid); color:#fff; display:flex; align-items:center; justify-content:center;':''}">${cu && cu.avatarDataUrl && isSafeDataUrl(cu.avatarDataUrl) ? `<img src="${cu.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">` : esc(initials(displayName))}</div>
               <div class="fc-body"><div class="fc-name">${esc(displayName)}</div><div class="fc-text">${esc(c.text)}</div></div>
             </div>`;
           }).join('')}
@@ -8218,12 +8230,12 @@ async function doPublishStep(){
   const fullText = isThread ? item.threadSegments.map((s,i)=>`${i+1}/${item.threadSegments.length} ${s.text}`).join('\n\n') : item.caption;
   if(p.intent){
     const url = p.intent(firstText, item.mediaUrl);
-    if(url) window.open(url, '_blank');
+    if(url && /^https?:\/\//i.test(url)) window.open(url, '_blank', 'noopener,noreferrer');
     if(isThread && item.threadSegments.length>1) showToast(`Opened post 1, you'll need to add the other ${item.threadSegments.length-1} manually as replies`);
   } else {
     try{ await navigator.clipboard.writeText(fullText); showToast('Copied to clipboard'); }
     catch(e){ showToast('Could not auto-copy, select the text above manually'); }
-    window.open(p.url, '_blank');
+    if(p.url && /^https?:\/\//i.test(p.url)) window.open(p.url, '_blank', 'noopener,noreferrer');
   }
   advancePublishQueue();
 }
@@ -9701,7 +9713,7 @@ function openProfileModal(){
   document.getElementById('modalBody').innerHTML = `
     <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
       <div style="width:56px; height:56px; border-radius:50%; overflow:hidden; background:var(--teal-solid); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-        ${DATA.profile.avatarDataUrl ? `<img src="${DATA.profile.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="color:#fff; font-weight:700; font-size:18px;">${esc(initials(DATA.profile.name))}</span>`}
+        ${DATA.profile.avatarDataUrl && isSafeDataUrl(DATA.profile.avatarDataUrl) ? `<img src="${DATA.profile.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="color:#fff; font-weight:700; font-size:18px;">${esc(initials(DATA.profile.name))}</span>`}
       </div>
       <div style="display:flex; gap:8px;">
         <button type="button" class="btn-small" onclick="document.getElementById('profileAvatarInput').click()">${iconUpload()} Upload photo</button>
@@ -10160,7 +10172,7 @@ function settingsAppearanceHTML(){
       <label>Company logo</label>
       <div style="display:flex; align-items:center; gap:12px;">
         <div style="width:44px; height:44px; border-radius:9px; background:#fff; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden;">
-          ${DATA.settings.logoDataUrl ? `<img src="${DATA.settings.logoDataUrl}" style="width:100%; height:100%; object-fit:contain;">` : `<span style="font-size:10px; color:var(--slate);">None</span>`}
+          ${DATA.settings.logoDataUrl && isSafeDataUrl(DATA.settings.logoDataUrl) ? `<img src="${DATA.settings.logoDataUrl}" style="width:100%; height:100%; object-fit:contain;">` : `<span style="font-size:10px; color:var(--slate);">None</span>`}
         </div>
         <button class="btn-small" onclick="document.getElementById('logoUploadInput').click()">Upload logo</button>
         ${DATA.settings.logoDataUrl ? `<button class="btn-small" onclick="clearLogo()">Remove</button>` : ''}
@@ -10887,7 +10899,7 @@ function settingsUsersHTML(){
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div style="display:flex; align-items:center; gap:10px;">
             <div style="width:34px; height:34px; border-radius:50%; overflow:hidden; background:var(--teal-solid); display:flex; align-items:center; justify-content:center; flex-shrink:0; cursor:${canEdit?'pointer':'default'};" ${canEdit?`onclick="openUserAvatarUpload('${u.id}')"`:''} title="${canEdit?'Click to change photo':''}">
-              ${u.avatarDataUrl ? `<img src="${u.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="color:#fff; font-weight:700; font-size:12px;">${esc(initials(u.name))}</span>`}
+              ${(u.avatarDataUrl && isSafeDataUrl(u.avatarDataUrl)) ? `<img src="${u.avatarDataUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="color:#fff; font-weight:700; font-size:12px;">${esc(initials(u.name))}</span>`}
             </div>
             <div><div class="ru-name">${esc(u.name)}${isUserOutToday(u.id)?' <span style="color:var(--red-text); font-size:11px; font-weight:700;">· Out today</span>':''}</div><div class="ru-sub">${esc(u.email||'no email')} · ${role?esc(role.name)+' · sees '+(role.scope==='own'?'own records only':'everyone'):'No role assigned'}</div></div>
           </div>
@@ -11041,7 +11053,7 @@ function resetInactivityTimer(){
 function lockSession(){
   document.getElementById('lockProfileName').textContent = DATA.profile.name;
   const logoImg = document.getElementById('lockLogoImg');
-  logoImg.src = DATA.settings.logoDataUrl || FAVZE_MARK_DATAURI;
+  logoImg.src = (DATA.settings.logoDataUrl && isSafeDataUrl(DATA.settings.logoDataUrl)) ? DATA.settings.logoDataUrl : FAVZE_MARK_DATAURI;
   document.getElementById('lockOverlay').classList.add('open');
   hideGlobalSearch();
   closeModal();

@@ -171,6 +171,21 @@
             <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">Idle sessions auto sign out</p>
             <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">The CRM now signs out automatically after 30 minutes of inactivity. CRM data still lives in <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> and can be read directly via DevTools even after sign-out. Do not use the CRM on shared or public machines.</p>
           </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">Clickjacking is mitigated but not fully blocked</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">The CRM now includes a JavaScript framebusting snippet that breaks out of any iframe or attempts to hide the page if it detects it is being framed by another site. Because GitHub Pages does not support the <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">X-Frame-Options</code> or <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">frame-ancestors</code> CSP header, JS-based framebusting is the only available control and can be bypassed by a determined attacker. A server with custom response headers would close this fully.</p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">External links use noopener/noreferrer</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">All links and media that open in a new tab now include <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">rel="noopener noreferrer"</code>, which prevents the opened page from accessing or redirecting the CRM window via <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">window.opener</code> (reverse tabnapping). Links to platforms like LinkedIn, Twitter, or Facebook that the CRM constructs dynamically are validated to require an <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">https://</code> scheme before being opened, preventing <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">javascript:</code> URI injection.</p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">Avatar and logo images are validated before rendering</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">Profile avatars and company logos stored in <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> as data URIs are now validated to confirm they are image data (png, jpeg, gif, webp, or svg) before being rendered in <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">src</code> attributes. A tampered <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> entry with a non-image data URI will not render. Because <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> is writable from DevTools by anyone with physical access to the browser, this is a defense-in-depth measure rather than a full mitigation.</p>
+          </div>
         </div>
 
         <p style="font-size:12px;color:var(--slate);margin:18px 0 0;line-height:1.55;">These limitations reflect the current phase of the product. Moving core data to a server-side store with proper session management and enforcing MFA would close most of them. Until then, keep this CRM on personal, password-locked machines only.</p>
