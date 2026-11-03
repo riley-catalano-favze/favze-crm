@@ -276,17 +276,23 @@ function schedulePush(){
 }
 
 function ensureDataShape(){
-  if(!DATA.contacts) DATA.contacts = [];
-  if(!DATA.projects) DATA.projects = [];
-  if(!DATA.tasks) DATA.tasks = [];
-  if(!DATA.reminders) DATA.reminders = [];
-  if(!DATA.workflows) DATA.workflows = [];
-  if(!DATA.emailLog) DATA.emailLog = [];
-  if(!DATA.deals) DATA.deals = [];
-  if(!DATA.savedViews) DATA.savedViews = [];
-  if(!DATA.customFields) DATA.customFields = [];
-  if(!DATA.callLogs) DATA.callLogs = [];
-  if(!DATA.campaigns) DATA.campaigns = [];
+  // Top-level arrays -- every key render functions access must be here
+  // so that data pulled from a remote device (which may predate some migrations)
+  // never reaches the render with an undefined collection.
+  const arrays = [
+    'contacts','projects','tasks','reminders','workflows','emailLog','deals',
+    'savedViews','customFields','callLogs','campaigns','companies','dealStages',
+    'emailLists','emailTemplates','events','contentCalendar','contentApprovals',
+    'timeOffRequests','tagDefinitions','trainingCourses','announcements',
+    'candidates','openRoles','priceQuotes','proposals','serviceRequests',
+    'segments','supportTickets','serviceCatalog','wikiPages','crmFeatureRequests',
+    'portalFeatureRequests','formSubmissions','users','roles','notifications',
+    'digestQueue','smsLog','incidentReports','timesheetApprovals','brandGuidelines',
+  ];
+  arrays.forEach(k=>{ if(!DATA[k]) DATA[k] = []; });
+  // Top-level objects
+  if(!DATA.profile) DATA.profile = { name:'', role:'', defaultView:'dashboard', avatarDataUrl:null };
+  if(!DATA.settings) DATA.settings = {};
 }
 
 async function localSave(){
