@@ -11059,4 +11059,19 @@ async function applyAuthGate(){
 }
 renderGate('checking');
 
+// Sign Out button at the bottom of the sidebar
+(function addSideSignOut(){
+  const foot = document.getElementById('sideFoot');
+  if(!foot || document.getElementById('sideSignOut')) return;
+  const btn = document.createElement('button');
+  btn.id = 'sideSignOut';
+  btn.type = 'button';
+  btn.textContent = 'Sign out';
+  btn.style.cssText = 'display:block; width:calc(100% - 24px); margin:0 12px 14px; padding:9px 12px; border:1px solid rgba(255,255,255,.18); border-radius:8px; background:transparent; color:#c3d6ec; font-size:13px; font-weight:600; cursor:pointer; text-align:center;';
+  btn.onmouseenter = ()=>{ btn.style.background = 'rgba(255,255,255,.08)'; btn.style.color = '#fff'; };
+  btn.onmouseleave = ()=>{ btn.style.background = 'transparent'; btn.style.color = '#c3d6ec'; };
+  btn.onclick = ()=>{ closeMobileSidebar(); gateSignOut(); };
+  foot.insertAdjacentElement('afterend', btn);
+})();
+
 loadData();
