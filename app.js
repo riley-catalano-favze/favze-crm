@@ -862,6 +862,7 @@ async function loadData(){
   checkScheduledCampaigns();
   await restoreOutlookSession();
   await restoreAgencySupabaseSession();
+  await applyAuthGate();
   resetInactivityTimer();
   render();
   runAfterNavigation();
@@ -10400,6 +10401,7 @@ async function disconnectAgencySupabase(){
   allAccountRequests = [];
   refreshSettingsBody();
   showToast('Disconnected');
+  applyAuthGate();
 }
 async function restoreAgencySupabaseSession(){
   const client = getSupabaseClient();
@@ -10921,5 +10923,140 @@ function startHotkeyCapture(actionKey, btn){
   };
   document.addEventListener('keydown', handler, true);
 }
+
+
+/* ===================== SIGN-IN GATE =====================
+   Every CRM page opens behind this screen. It lifts only for a signed-in agency account that an
+   approved agency account has approved. New sign-ups wait on the "pending" screen. */
+let gateMode = 'signin';
+let gateListenerAttached = false;
+let gateNotice = '';
+function ensureGateEl(){
+  let el = document.getElementById('crmGate');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'crmGate';
+    el.style.cssText = 'position:fixed; inset:0; z-index:100000; display:flex; align-items:center; justify-content:center; padding:20px; background:linear-gradient(185deg,#031f3d,#04305f 70%,#052549); font-family:"DM Sans",system-ui,sans-serif; overflow:auto;';
+    document.body.appendChild(el);
+  }
+  el.style.display = 'flex';
+  return el;
+}
+function gateShell(inner){
+  return `<div style="background:#fff; border-radius:16px; width:100%; max-width:380px; padding:34px 30px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.35);">
+    <div style="width:56px; height:56px; margin:0 auto 14px; border-radius:14px; background:#04305f; display:flex; align-items:center; justify-content:center; overflow:hidden;"><img src="${FAVZE_MARK_DATAURI}" alt="Favze" style="width:100%; height:100%; object-fit:contain;"></div>
+    <div style="font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:26px; color:#04305f; margin-bottom:6px;">Favze CRM</div>
+    ${inner}
+  </div>`;
+}
+function renderGate(state){
+  const el = ensureGateEl();
+  if(state==='checking'){
+    el.innerHTML = gateShell(`<p style="font-size:13px; color:#5b6b80;">Checking your sign-in...</p>`);
+    return;
+  }
+  if(state==='pending'){
+    const email = agencySupabaseSession ? agencySupabaseSession.user.email : '';
+    el.innerHTML = gateShell(`
+      <p style="font-size:14px; font-weight:700; color:#04305f; margin:10px 0 8px;">Almost there</p>
+      <p style="font-size:13px; color:#5b6b80; line-height:1.55; margin-bottom:6px;">${esc(email)} is created and waiting for approval from an approved Favze agency account.</p>
+      <p style="font-size:12px; color:#8a97a8; margin-bottom:20px;">Once it is approved, tap Check again to open the CRM.</p>
+      <button type="button" onclick="gateRecheck()" style="width:100%; padding:11px; border:none; border-radius:9px; background:#04305f; color:#fff; font-weight:700; font-size:13.5px; cursor:pointer; margin-bottom:8px;">Check again</button>
+      <button type="button" onclick="gateSignOut()" style="width:100%; padding:11px; border:1px solid #d5dce6; border-radius:9px; background:#fff; color:#04305f; font-weight:700; font-size:13.5px; cursor:pointer;">Sign out</button>`);
+    return;
+  }
+  const signup = gateMode==='signup';
+  const tab = (m,label)=>`<button type="button" onclick="gateSetMode('${m}')" style="flex:1; border:none; border-radius:7px; padding:8px 0; font-size:12.5px; font-weight:700; cursor:pointer; ${gateMode===m?'background:#04305f; color:#fff;':'background:transparent; color:#5b6b80;'}">${label}</button>`;
+  el.innerHTML = gateShell(`
+    <div style="display:flex; gap:4px; background:#eef2f7; border-radius:10px; padding:4px; margin:14px 0 16px;">${tab('signin','Sign In')}${tab('signup','Sign Up')}</div>
+    <p style="font-size:12.5px; color:#5b6b80; margin-bottom:16px;">${signup ? 'Create your account. An approved Favze agency account then approves it before the CRM opens.' : 'Sign in with your approved Favze agency account.'}</p>
+    <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">Email</label><input id="gate_email" type="email" autocomplete="username" placeholder="you@favze.com" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
+    <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">Password</label><input id="gate_password" type="password" autocomplete="${signup?'new-password':'current-password'}" placeholder="••••••••" onkeydown="if(event.key==='Enter')gateSubmit()" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
+    <div id="gate_msg" style="font-size:12.5px; margin-bottom:12px; min-height:16px; color:#b42318;">${esc(gateNotice)}</div>
+    <button id="gate_btn" type="button" onclick="gateSubmit()" style="width:100%; padding:12px; border:none; border-radius:9px; background:#04305f; color:#fff; font-weight:700; font-size:14px; cursor:pointer;">${signup?'Create Account':'Sign In'}</button>`);
+  gateNotice = '';
+}
+function gateSetMode(m){ gateMode = m; gateNotice = ''; renderGate('form'); }
+function gateMsg(text, good){
+  const m = document.getElementById('gate_msg');
+  if(!m) return;
+  m.style.color = good ? '#067647' : '#b42318';
+  m.textContent = text;
+}
+async function gateSubmit(){
+  const email = (document.getElementById('gate_email')||{}).value;
+  const password = (document.getElementById('gate_password')||{}).value;
+  if(!email || !password){ gateMsg('Enter both email and password.'); return; }
+  const client = getSupabaseClient();
+  if(!client){ gateMsg('The sign-in service did not load. Check your connection and refresh.'); return; }
+  const btn = document.getElementById('gate_btn');
+  if(btn){ btn.disabled = true; btn.style.opacity = '.7'; }
+  try{
+    let session = null;
+    if(gateMode==='signup'){
+      if(password.length < 6){ gateMsg('Use a password with at least 6 characters.'); return; }
+      const { data, error } = await client.auth.signUp({ email: email.trim(), password });
+      if(error){ gateMsg(error.message || 'Could not create that account.'); return; }
+      if(!data.session){
+        gateMode = 'signin';
+        renderGate('form');
+        gateMsg('Account created. Check your email to confirm it, then sign in.', true);
+        return;
+      }
+      session = data.session;
+    } else {
+      const { data, error } = await client.auth.signInWithPassword({ email: email.trim(), password });
+      if(error){ gateMsg('That email and password combination was not recognized.'); return; }
+      session = data.session;
+    }
+    agencySupabaseSession = session;
+    agencyAccountRequest = await ensureAgencyAccountRequest(session);
+    await refreshAccountRequests();
+    const open = await applyAuthGate();
+    if(open){ render(); }
+  }catch(err){
+    console.error(err);
+    gateMsg('Could not reach the sign-in service. Check your connection and try again.');
+  }finally{
+    const b = document.getElementById('gate_btn');
+    if(b){ b.disabled = false; b.style.opacity = '1'; }
+  }
+}
+async function gateRecheck(){
+  if(!agencySupabaseSession) return applyAuthGate();
+  agencyAccountRequest = await ensureAgencyAccountRequest(agencySupabaseSession);
+  await refreshAccountRequests();
+  const open = await applyAuthGate();
+  if(open){ render(); } else { showToast('Still waiting on approval'); }
+}
+async function gateSignOut(){
+  const client = getSupabaseClient();
+  try{ if(client) await client.auth.signOut(); }catch(e){}
+  agencySupabaseSession = null; agencyAccountRequest = null; allAccountRequests = [];
+  gateMode = 'signin';
+  await applyAuthGate();
+}
+async function applyAuthGate(){
+  const client = getSupabaseClient();
+  if(client && !gateListenerAttached){
+    gateListenerAttached = true;
+    client.auth.onAuthStateChange((ev)=>{
+      if(ev==='SIGNED_OUT'){ agencySupabaseSession = null; agencyAccountRequest = null; setTimeout(applyAuthGate, 0); }
+    });
+  }
+  if(agencySupabaseSession){
+    if(!agencyAccountRequest) agencyAccountRequest = await ensureAgencyAccountRequest(agencySupabaseSession);
+    if(agencyAccountRequest && agencyAccountRequest.approved && agencyAccountRequest.role==='agency'){
+      const el = document.getElementById('crmGate');
+      if(el) el.style.display = 'none';
+      return true;
+    }
+    renderGate('pending');
+    return false;
+  }
+  renderGate('form');
+  return false;
+}
+renderGate('checking');
 
 loadData();
