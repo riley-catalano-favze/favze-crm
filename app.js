@@ -1094,7 +1094,7 @@ function applySettings(){
   const isDark = DATA.settings.theme === 'dark';
   document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
   document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
-  const accent = DATA.settings.accent || '#0A89A3';
+  const accent = isSafeColor(DATA.settings.accent) ? DATA.settings.accent : '#0A89A3';
   document.documentElement.style.setProperty('--teal', accent);
   document.documentElement.style.setProperty('--teal-text', accessibleTextShade(accent, isDark));
   // Solid backgrounds with white text on top need to stay dark enough regardless of
@@ -5936,7 +5936,7 @@ function exportProposalToPDF(id){
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root{ --navy:${(bg.colors.find(c=>c.name==='Navy')||{}).hex||'#064187'}; --navy-deep:${(bg.colors.find(c=>c.name==='Navy Deep')||{}).hex||'#04305f'}; --teal:${(bg.colors.find(c=>c.name==='Teal')||{}).hex||'#0A89A3'}; --slate:#5B6B7C; --line:#E3E8EC; }
+  :root{ --navy:${isSafeColor((bg.colors.find(c=>c.name==='Navy')||{}).hex)?bg.colors.find(c=>c.name==='Navy').hex:'#064187'}; --navy-deep:${isSafeColor((bg.colors.find(c=>c.name==='Navy Deep')||{}).hex)?bg.colors.find(c=>c.name==='Navy Deep').hex:'#04305f'}; --teal:${isSafeColor((bg.colors.find(c=>c.name==='Teal')||{}).hex)?bg.colors.find(c=>c.name==='Teal').hex:'#0A89A3'}; --slate:#5B6B7C; --line:#E3E8EC; }
   *{box-sizing:border-box;}
   body{font-family:'DM Sans',sans-serif; color:#0B1220; max-width:760px; margin:0 auto; padding:50px 40px 70px;}
   h1,h2{font-family:'Barlow Condensed',sans-serif; font-weight:900; line-height:.92; color:var(--navy-deep);}
@@ -6048,7 +6048,7 @@ function exportCapabilitiesOnePagerToPDF(companyId, selectedCategories, tagline)
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@900&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root{ --navy:${(bg.colors.find(c=>c.name==='Navy')||{}).hex||'#064187'}; --navy-deep:${(bg.colors.find(c=>c.name==='Navy Deep')||{}).hex||'#04305f'}; --teal:${(bg.colors.find(c=>c.name==='Teal')||{}).hex||'#0A89A3'}; --slate:#5B6B7C; --line:#E3E8EC; }
+  :root{ --navy:${isSafeColor((bg.colors.find(c=>c.name==='Navy')||{}).hex)?bg.colors.find(c=>c.name==='Navy').hex:'#064187'}; --navy-deep:${isSafeColor((bg.colors.find(c=>c.name==='Navy Deep')||{}).hex)?bg.colors.find(c=>c.name==='Navy Deep').hex:'#04305f'}; --teal:${isSafeColor((bg.colors.find(c=>c.name==='Teal')||{}).hex)?bg.colors.find(c=>c.name==='Teal').hex:'#0A89A3'}; --slate:#5B6B7C; --line:#E3E8EC; }
   *{box-sizing:border-box;}
   body{font-family:'DM Sans',sans-serif; color:#0B1220; max-width:760px; margin:0 auto; padding:50px 40px 70px;}
   h1,h2{font-family:'Barlow Condensed',sans-serif; font-weight:900; line-height:.92; color:var(--navy-deep);}
@@ -6259,8 +6259,8 @@ function renderBrandGuidelinesView(){
       <div style="font-size:12px; font-weight:700; color:var(--slate); text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px;">Colors <span style="font-weight:500; text-transform:none; color:#9aa8b6;">(click to copy hex)</span></div>
       <div style="display:flex; flex-wrap:wrap; gap:12px;">
         ${(bg.colors||[]).map(c=>`
-          <div style="width:120px; cursor:pointer;" onclick="copyMergeCode('${esc(c.hex)}')" title="Click to copy">
-            <div style="height:56px; border-radius:8px; background:${esc(c.hex)}; border:1px solid var(--line); margin-bottom:6px;"></div>
+          <div style="width:120px; cursor:pointer;" onclick="copyMergeCode('${escJs(c.hex)}')" title="Click to copy">
+            <div style="height:56px; border-radius:8px; background:${isSafeColor(c.hex)?c.hex:'#ccc'}; border:1px solid var(--line); margin-bottom:6px;"></div>
             <div style="font-size:11.5px; font-weight:700; color:var(--ink);">${esc(c.name)}</div>
             <div class="mono" style="font-size:10.5px; color:var(--slate);">${esc(c.hex)}</div>
           </div>`).join('')}
