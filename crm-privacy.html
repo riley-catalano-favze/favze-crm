@@ -132,6 +132,50 @@
         <p style="font-size:13.5px;color:var(--ink);line-height:1.65;margin:0;">When a team member departs, their user account is deactivated. Data they created in the CRM is retained as part of business records unless a specific deletion request is made.</p>
       </div>
 
+      <div class="card" style="padding:24px;border-left:3px solid #c9302c;">
+        <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;color:#c9302c;margin:0 0 10px;">Known Security Limitations</h2>
+        <p style="font-size:13.5px;color:var(--ink);line-height:1.65;margin:0 0 16px;">These are real gaps in the current implementation. We document them here so the team understands the risk posture honestly.</p>
+
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">All CRM data lives in your browser</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">Contacts, deals, notes, and activity logs are stored in <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> in each browser. Anyone with physical access to an unlocked browser session can open DevTools, call <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage.getItem('favze_crm')</code>, and export every record as plain JSON in under ten seconds. No additional authentication is required to do this.</p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">The entire data model is readable in app.js</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">Because this is a static GitHub Pages site, the full application code including all field names, data structures, Supabase project URL, and publishable key is publicly accessible. Anyone can inspect <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">app.js</code> to understand exactly what the CRM stores, how auth works, and how sync is structured. This is not secret.</p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">No brute-force protection on sign-in</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">Supabase's default auth settings do not rate-limit sign-in attempts unless you explicitly enable lockout. An attacker who knows a team member's email address can attempt unlimited passwords. Enabling leaked password protection and login rate limits in Supabase Auth settings closes this gap.</p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">No multi-factor authentication</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">Sign-in requires only email and password. If a password is guessed, reused from another breach, or phished, there is no second factor to block access. Supabase supports TOTP-based MFA; it is not currently enforced.</p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">No Content Security Policy</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">GitHub Pages does not support custom response headers, so there is no CSP header on any CRM page. If a cross-site scripting vector were introduced via a note, contact field, or template, the browser would execute it with no policy-level block. All user-generated content currently runs through an <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">esc()</code> function before being written to the DOM, which mitigates this risk, but the absence of a CSP as a defense-in-depth layer is a real gap.</p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">MSAL token cached in localStorage</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">The Outlook integration stores Microsoft authentication tokens in <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> by MSAL design (configured as <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">cacheLocation: 'localStorage'</code>). The same physical access attack that exposes CRM data also exposes a live Microsoft auth token. Anyone who extracts it from an unlocked machine could replay it to send email from the account until it expires.</p>
+          </div>
+
+          <div>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">Tab-sharing exposes all data</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;"><code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> persists until explicitly cleared. If a team member shares their screen, hands off a laptop, or uses a shared machine without signing out, the next person to open the browser has full read-write access to all CRM data with no authentication prompt.</p>
+          </div>
+        </div>
+
+        <p style="font-size:12px;color:var(--slate);margin:18px 0 0;line-height:1.55;">These limitations reflect the current phase of the product. Moving core data to a server-side store with proper session management and enforcing MFA would close most of them. Until then, keep this CRM on personal, password-locked machines only.</p>
+      </div>
+
       <div class="card" style="padding:24px;">
         <h2 style="font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;color:var(--navy);margin:0 0 10px;">Contact</h2>
         <p style="font-size:13.5px;color:var(--ink);line-height:1.65;margin:0 0 12px;">Questions about this policy or your data:</p>
