@@ -1735,8 +1735,8 @@ function renderListView(type, k){
     ${DATA.tagDefinitions.length ? `
     <div class="view-chips">
       ${DATA.tagDefinitions.map(t=>`
-        <span class="view-chip ${tagFilter===t.id?'active':''}" style="${tagFilter===t.id?`background:${t.color}; border-color:${t.color};`:''}" onclick="setTagFilter('${t.id}')">
-          <span style="width:8px; height:8px; border-radius:50%; background:${tagFilter===t.id?'#fff':t.color}; display:inline-block; margin-right:5px;"></span>${esc(t.name)}
+        <span class="view-chip ${tagFilter===t.id?'active':''}" style="${tagFilter===t.id&&isSafeColor(t.color)?`background:${t.color}; border-color:${t.color};`:''}" onclick="setTagFilter('${t.id}')">
+          <span style="width:8px; height:8px; border-radius:50%; background:${tagFilter===t.id?'#fff':(isSafeColor(t.color)?t.color:'var(--teal)')}; display:inline-block; margin-right:5px;"></span>${esc(t.name)}
         </span>`).join('')}
       ${tagFilter ? `<span class="view-chip" onclick="setTagFilter(null)">${iconX()} Clear tag filter</span>` : ''}
     </div>` : ''}
@@ -3992,7 +3992,7 @@ function renderTrainingView(){
         <thead>
           <tr>
             <th style="position:sticky; left:0; background:var(--white); z-index:1;">Employee</th>
-            ${mandatoryCourses.map(c=>`<th style="text-align:center;">${c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener" style="color:var(--teal-text);">${esc(c.name)} ↗</a>` : esc(c.name)}</th>`).join('')}
+            ${mandatoryCourses.map(c=>`<th style="text-align:center;">${c.url ? `<a href="${safeHref(c.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--teal-text);">${esc(c.name)} ↗</a>` : esc(c.name)}</th>`).join('')}
           </tr>
         </thead>
         <tbody>
@@ -5453,8 +5453,8 @@ function renderContentApprovalView(){
         <div class="feed-title" onclick="openEditContent('${i.id}')">${esc(i.title || type.label)}</div>
         ${i.description ? `<div class="feed-desc">${esc(i.description)}</div>` : ''}
         ${i.caption ? `<div class="feed-caption">"${esc(i.caption)}"</div>` : ''}
-        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${esc(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
-        ${i.mediaUrl ? `<a class="feed-media" href="${esc(i.mediaUrl)}" target="_blank" rel="noopener noreferrer">${iconPhone()} View media</a>` : ''}
+        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${escJs(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
+        ${i.mediaUrl ? `<a class="feed-media" href="${safeHref(i.mediaUrl)}" target="_blank" rel="noopener noreferrer">${iconPhone()} View media</a>` : ''}
         <div style="display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;">
           <button class="btn-small" style="background:var(--green-soft); color:var(--green-text); border-color:var(--green);" onclick="setContentApprovalStatus('${i.id}','Approved')">${iconCheck()} Approve</button>
           <button class="btn-small" style="background:var(--amber-soft); color:var(--amber-text); border-color:var(--amber);" onclick="setContentApprovalStatus('${i.id}','Revisions Requested')">Request Revisions</button>
@@ -6138,14 +6138,14 @@ function renderServiceCatalogView(){
           <div style="font-size:10.5px; color:var(--teal-text); font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px;">${esc(s.category)}</div>
           <div style="font-size:12.5px; color:var(--slate); line-height:1.5; margin-bottom:12px;">${esc(s.description)}</div>
           ${s.deepDiveUrl ? `
-          <a href="${esc(s.deepDiveUrl)}" target="_blank" rel="noopener" style="display:flex; align-items:center; gap:8px; text-decoration:none; background:var(--teal-soft); border:1px solid var(--teal); border-radius:8px; padding:8px 11px; margin-bottom:12px; font-size:12px; font-weight:700; color:var(--teal-text);">
+          <a href="${safeHref(s.deepDiveUrl)}" target="_blank" rel="noopener noreferrer" style="display:flex; align-items:center; gap:8px; text-decoration:none; background:var(--teal-soft); border:1px solid var(--teal); border-radius:8px; padding:8px 11px; margin-bottom:12px; font-size:12px; font-weight:700; color:var(--teal-text);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6M9 17h6M9 9h1"/></svg>
             Deep Dive Doc ↗
           </a>` : `<div style="font-size:11px; color:var(--slate); margin-bottom:12px;">No deep dive doc linked yet</div>`}
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="btn-small" onclick="buildQuoteForService('${esc(s.name).replace(/'/g,"\\'")}')">${iconPlus()} Build a quote</button>
+            <button class="btn-small" onclick="buildQuoteForService('${escJs(s.name)}')">${iconPlus()} Build a quote</button>
             <button class="btn-small" onclick="openEditService('${s.id}')">${iconGear()} Edit</button>
-            ${s.url?`<a class="btn-small" href="${esc(s.url)}" target="_blank" rel="noopener" style="text-decoration:none; display:inline-flex; align-items:center;">View live ↗</a>`:''}
+            ${s.url?`<a class="btn-small" href="${safeHref(s.url)}" target="_blank" rel="noopener noreferrer" style="text-decoration:none; display:inline-flex; align-items:center;">View live ↗</a>`:''}
           </div>
         </div>`).join('') : `<div class="feed-empty">No services yet. Click "New Service" to add one.</div>`}
     </div>
@@ -6364,7 +6364,8 @@ function renderWikiView(){
 function openWikiDoc(id){
   const p = DATA.wikiPages.find(x=>x.id===id);
   if(!p) return;
-  if(p.docUrl){ window.open(p.docUrl, '_blank', 'noopener'); }
+  if(p.docUrl && isSafeHttpUrl(p.docUrl)){ window.open(p.docUrl, '_blank', 'noopener,noreferrer'); }
+  else if(p.docUrl){ showToast('Invalid document URL — must start with https://'); }
   else { openEditWikiPage(id); showToast('Add a Google Doc link first'); }
 }
 let editingWikiId = null;
@@ -7137,7 +7138,7 @@ function runGlobalSearch(term){
   const tasks = DATA.tasks.filter(t=>t.title.toLowerCase().includes(s)).slice(0,4);
   const reminders = DATA.reminders.filter(r=>r.text.toLowerCase().includes(s)).slice(0,4);
   const groups = [
-    {label:'Contacts', items:contacts, render:x=>({name:x.name, sub:typeLabel(x.type), onclick:`gsGo('${x.type}','${x.id}','contact')`})},
+    {label:'Contacts', items:contacts, render:x=>{ const safeType=['prospect','lead','customer','past_customer'].includes(x.type)?x.type:'prospect'; return {name:x.name, sub:typeLabel(x.type), onclick:`gsGo('${safeType}','${x.id}','contact')`}; }},
     {label:'Deals', items:deals, render:x=>({name:x.name, sub:fmtMoney(x.value), onclick:`gsGo('deals','${x.id}','deal')`})},
     {label:'Projects', items:projects, render:x=>({name:x.name, sub:x.status, onclick:`gsGo('project','${x.id}','project')`})},
     {label:'Tasks', items:tasks, render:x=>({name:x.title, sub:x.priority||'', onclick:`gsGo('task','${x.id}','task')`})},
@@ -7832,8 +7833,8 @@ function renderContentFeed(customers){
         <div class="feed-title" onclick="openEditContent('${i.id}')">${esc(i.title || type.label)}</div>
         ${i.description ? `<div class="feed-desc">${esc(i.description)}</div>` : ''}
         ${i.caption ? `<div class="feed-caption">"${esc(i.caption)}"</div>` : ''}
-        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${esc(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
-        ${i.mediaUrl ? `<a class="feed-media" href="${esc(i.mediaUrl)}" target="_blank" rel="noopener noreferrer">${iconPhone()} View media</a>` : ''}
+        ${(i.imageUrls&&i.imageUrls.length) ? `<div class="photo-carousel">${i.imageUrls.map(u=>`<img src="${esc(u)}" onclick="window.open('${escJs(u)}','_blank','noopener,noreferrer')" alt="Content photo">`).join('')}</div>` : ''}
+        ${i.mediaUrl ? `<a class="feed-media" href="${safeHref(i.mediaUrl)}" target="_blank" rel="noopener noreferrer">${iconPhone()} View media</a>` : ''}
         ${(!i.approvalStatus || i.approvalStatus==='Not Submitted') ? `
         <div style="margin-bottom:8px;"><button class="btn-small" onclick="submitContentForApproval('${i.id}')">${iconUpload()} Submit for Approval</button></div>` : ''}
         ${i.approvalStatus==='Pending Review' || i.approvalStatus==='Revisions Requested' ? `
@@ -8695,7 +8696,9 @@ function callHref(phone){
   const protocol = (DATA.settings && DATA.settings.callProtocol) || 'tel';
   if(protocol==='skype') return `skype:${digits}?call`;
   if(protocol==='facetime') return `facetime:${digits}`;
-  if(protocol==='custom' && DATA.settings.customCallUrlPattern) return DATA.settings.customCallUrlPattern.replace('{number}', encodeURIComponent(digits));
+  if(protocol==='custom' && DATA.settings.customCallUrlPattern && /^https?:\/\//i.test(DATA.settings.customCallUrlPattern)){
+    return DATA.settings.customCallUrlPattern.replace('{number}', encodeURIComponent(digits));
+  }
   return `tel:${digits}`;
 }
 function iconPhone(){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;}
@@ -8707,6 +8710,12 @@ function iconPlus(){return `<svg viewBox="0 0 24 24" fill="none" stroke="current
 function iconGear(){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;}
 
 function esc(s){ const d=document.createElement('div'); d.textContent = s||''; return d.innerHTML; }
+/* safe href: returns url if https?://, else '#' */
+function safeHref(url){ return (typeof url==='string' && /^https?:\/\//i.test(url)) ? url : '#'; }
+/* JS-safe string for onclick single-quote context */
+function escJs(s){ return esc(s).replace(/'/g,'&#x27;'); }
+/* safe hex color validator */
+function isSafeColor(c){ return typeof c==='string' && /^#[0-9a-fA-F]{3,8}$/.test(c); }
 
 /* ===================== NAV / SEARCH ===================== */
 document.getElementById('sideNav').addEventListener('click', (e)=>{
@@ -9087,7 +9096,7 @@ function modalFormHTML(c){
         <label>Documents &amp; Attachments</label>
         <div class="calls-mini">${(p.documents||[]).length ? p.documents.map(d=>`
           <div class="call-mini-item" style="display:flex; justify-content:space-between; align-items:center;">
-            <span><b>${esc(d.type)}</b>: ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name||d.url)}</a>` : esc(d.name)}</span>
+            <span><b>${esc(d.type)}</b>: ${d.url ? `<a href="${safeHref(d.url)}" target="_blank" rel="noopener noreferrer">${esc(d.name||d.url)}</a>` : esc(d.name)}</span>
             <button type="button" class="btn-small" onclick="deleteDocument('${c.id}','${d.id}')">Remove</button>
           </div>`).join('') : '<div class="call-mini-item" style="color:var(--slate);">No documents linked yet.</div>'}</div>
         <div class="field-row" style="margin-top:8px;">
@@ -10231,7 +10240,12 @@ function settingsAppearanceHTML(){
   `;
 }
 async function setCallProtocol(v){ DATA.settings.callProtocol = v; await saveData(); refreshSettingsBody(); }
-async function setCustomCallUrl(v){ DATA.settings.customCallUrlPattern = v.trim(); await saveData(); }
+async function setCustomCallUrl(v){
+  const trimmed = v.trim();
+  if(trimmed && !/^https?:\/\//i.test(trimmed)){ showToast('Custom call URL must start with https://'); return; }
+  DATA.settings.customCallUrlPattern = trimmed;
+  await saveData();
+}
 async function setDateFormat(v){ DATA.settings.dateFormat = v; await saveData(); render(); }
 async function setNumberFormat(v){ DATA.settings.numberFormat = v; await saveData(); render(); }
 async function clearLogo(){
