@@ -11006,7 +11006,11 @@ async function gateSubmit(){
       session = data.session;
     } else {
       const { data, error } = await client.auth.signInWithPassword({ email: email.trim(), password });
-      if(error){ gateMsg('That email and password combination was not recognized.'); return; }
+      if(error){
+        if(/confirm/i.test(error.message||'')) gateMsg('Confirm your email first. Check your inbox for the Favze confirmation link, then sign in.');
+        else gateMsg('That email and password combination was not recognized.');
+        return;
+      }
       session = data.session;
     }
     agencySupabaseSession = session;
