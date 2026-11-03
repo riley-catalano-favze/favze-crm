@@ -10944,7 +10944,7 @@ function ensureGateEl(){
 }
 function gateShell(inner){
   return `<div style="background:#fff; border-radius:16px; width:100%; max-width:380px; padding:34px 30px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.35);">
-    <div style="width:56px; height:56px; margin:0 auto 14px; border-radius:14px; background:#04305f; display:flex; align-items:center; justify-content:center; overflow:hidden;"><img src="${FAVZE_MARK_DATAURI}" alt="Favze" style="width:100%; height:100%; object-fit:contain;"></div>
+    <div style="width:60px; height:60px; margin:0 auto 14px; border-radius:14px; background:#fff; border:1px solid #e3e9f1; box-shadow:0 2px 8px rgba(4,48,95,.12); display:flex; align-items:center; justify-content:center; overflow:hidden; padding:7px; box-sizing:border-box;"><img src="${FAVZE_MARK_DATAURI}" alt="Favze" style="width:100%; height:100%; object-fit:contain;"></div>
     <div style="font-family:'Barlow Condensed',sans-serif; font-weight:900; font-size:26px; color:#04305f; margin-bottom:6px;">Favze CRM</div>
     ${inner}
   </div>`;
