@@ -840,7 +840,10 @@ async function loadData(){
       if(legacy[k]!==undefined) co[k] = legacy[k];
     });
     ['address','social','marketing','website','assets','branding','contract','billing','health','internal'].forEach(k=>{
-      if(legacy[k]) co[k] = {...co[k], ...legacy[k]};
+      if(legacy[k] && typeof legacy[k]==='object'){
+        const safe = Object.fromEntries(Object.entries(legacy[k]).filter(([p])=>p!=='__proto__'&&p!=='constructor'&&p!=='prototype'));
+        co[k] = {...co[k], ...safe};
+      }
     });
     DATA.companies.push(co);
     c.companyId = co.id;
@@ -4062,7 +4065,7 @@ function openManageCoursesModal(){
         <div class="call-mini-item" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
           <div>
             <div>${c.provider?esc(c.provider)+' — ':''}${esc(c.name)}</div>
-            ${c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener" style="font-size:11px; color:var(--teal-text); font-weight:600;">Open Course ↗</a>` : `<span style="font-size:11px; color:var(--slate);">No link yet</span>`}
+            ${c.url ? `<a href="${safeHref(c.url)}" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:var(--teal-text); font-weight:600;">Open Course ↗</a>` : `<span style="font-size:11px; color:var(--slate);">No link yet</span>`}
           </div>
           <div style="display:flex; gap:6px; flex-shrink:0;">
             <button type="button" class="btn-small" onclick="openEditCourseLink('${c.id}')">${iconGear()}</button>
