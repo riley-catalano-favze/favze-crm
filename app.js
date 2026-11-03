@@ -8654,7 +8654,7 @@ async function loadExtraDeliverablesForContact(c){
   const container = document.getElementById('extraDeliverables_'+c.id);
   if(!container) return;
   if(!agencySupabaseSession || !agencyAccountRequest || !agencyAccountRequest.approved){
-    container.innerHTML = '<span style="color:var(--slate-soft);">Connect your agency account in Settings → Integrations to view these.</span>';
+    container.innerHTML = '<span style="color:var(--slate);">Connect your agency account in Settings → Integrations to view these.</span>';
     return;
   }
   const client = getSupabaseClient();
@@ -8663,7 +8663,7 @@ async function loadExtraDeliverablesForContact(c){
     const { data, error } = await client.from('extra_deliverables').select('id,data').eq('client_id', c.portalUid).order('created_at', {ascending:true});
     if(error) throw error;
     const rows = data || [];
-    if(!rows.length){ container.innerHTML = '<span style="color:var(--slate-soft);">None logged yet this cycle.</span>'; return; }
+    if(!rows.length){ container.innerHTML = '<span style="color:var(--slate);">None logged yet this cycle.</span>'; return; }
     const total = rows.reduce((sum,r)=> sum + (Number(r.data.value)||0), 0);
     container.innerHTML = rows.map(r=>`
       <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); font-size:12.5px;">
@@ -8775,8 +8775,8 @@ function modalFormHTML(c){
           <div style="font-size:12px; font-weight:700; color:var(--ink);">Extra Deliverables This Cycle</div>
           <button type="button" class="btn-small" onclick="openAddExtraDeliverableModal('${c.id}')">${iconPlus()} Add</button>
         </div>
-        <div id="extraDeliverables_${c.id}" style="font-size:12px; color:var(--slate-soft);">Loading…</div>
-        <p style="font-size:10.5px; color:var(--slate-soft); margin-top:8px;">Each item shows up individually, with its own price, in both the CRM and the client's Portal under Billing — itemized, no bundled surcharge.</p>
+        <div id="extraDeliverables_${c.id}" style="font-size:12px; color:var(--slate);">Loading…</div>
+        <p style="font-size:10.5px; color:var(--slate); margin-top:8px;">Each item shows up individually, with its own price, in both the CRM and the client's Portal under Billing — itemized, no bundled surcharge.</p>
       </div>
       ` : ''}
       ` : ''}
@@ -10163,7 +10163,7 @@ function settingsIntegrationsHTML(){
                 <button class="btn-primary" style="padding:6px 12px; font-size:12px;" onclick="${r.role==='client' ? `approveClientRequest('${r.user_id}','${esc(r.email||'').replace(/'/g,"\\'")}')` : `approveAgencyRequest('${r.user_id}')`}">Approve</button>
               </div>
             </div>
-          </div>`).join('') : `<p style="font-size:12px; color:var(--slate-soft);">Nothing waiting on you right now.</p>`}
+          </div>`).join('') : `<p style="font-size:12px; color:var(--slate);">Nothing waiting on you right now.</p>`}
       </div>
 
       <div style="border-top:1px solid var(--line); padding-top:14px;">
@@ -10174,12 +10174,12 @@ function settingsIntegrationsHTML(){
           return `
           <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
             <div>
-              <div style="font-size:12.5px; font-weight:700; color:var(--ink);">${esc(r.email||r.user_id)} ${isSelf ? '<span style="color:var(--slate-soft); font-weight:500;">(you)</span>' : ''}</div>
+              <div style="font-size:12.5px; font-weight:700; color:var(--ink);">${esc(r.email||r.user_id)} ${isSelf ? '<span style="color:var(--slate); font-weight:500;">(you)</span>' : ''}</div>
               <div style="font-size:11px; color:var(--slate);">${r.role==='agency'?'Agency account':`Client account${linkedContact ? ' — linked to '+esc(linkedContact.name) : ' — not linked to a contact'}`}</div>
             </div>
-            ${isSelf ? `<span style="font-size:11px; color:var(--slate-soft);">Can't revoke yourself</span>` : `<button class="btn-small" onclick="revokeAccountRequest('${r.user_id}','${r.role}')">Revoke</button>`}
+            ${isSelf ? `<span style="font-size:11px; color:var(--slate);">Can't revoke yourself</span>` : `<button class="btn-small" onclick="revokeAccountRequest('${r.user_id}','${r.role}')">Revoke</button>`}
           </div>`;
-        }).join('') : `<p style="font-size:12px; color:var(--slate-soft);">No approved accounts yet.</p>`}
+        }).join('') : `<p style="font-size:12px; color:var(--slate);">No approved accounts yet.</p>`}
       </div>
       ` : agencySupabaseSession ? `
       <div style="background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center;">
