@@ -177,6 +177,23 @@ async function checkPortalUpdates(){
 const STORAGE_KEY = 'favze-crm-contacts';
 const SYNC_REV_KEY  = 'favze-crm-sync-rev';
 const SYNC_DIRTY_KEY = 'favze-crm-sync-dirty';
+
+/* ---- idle session timeout (30 minutes) ---- */
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+let _idleTimer = null;
+function _resetIdleTimer(){
+  clearTimeout(_idleTimer);
+  _idleTimer = setTimeout(()=>{
+    // only sign out if there is an active session
+    if(typeof gateSignOut === 'function' && typeof agencySupabaseSession !== 'undefined' && agencySupabaseSession){
+      showToast('Signed out after 30 minutes of inactivity.');
+      gateSignOut();
+    }
+  }, IDLE_TIMEOUT_MS);
+}
+['click','keydown','mousemove','touchstart','scroll'].forEach(evt=>{
+  document.addEventListener(evt, _resetIdleTimer, { passive: true });
+});
 let DATA = { contacts: [] };
 let currentView = window.FAVZE_VIEW || 'dashboard';
 // Cloud-sync state
@@ -401,7 +418,7 @@ function getMsalInstance(){
       authority: 'https://login.microsoftonline.com/common',
       redirectUri: window.location.origin + window.location.pathname.replace(/[^/]*$/, '') + 'favze-crm.html',
     },
-    cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: false },
+    cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
   });
   msalInstance.__clientId = clientId;
   return msalInstance;
@@ -10496,11 +10513,22 @@ async function connectAgencySupabase(){
   errEl.style.display = 'none';
   errEl.style.color = 'var(--red-text)';
   if(!email || !password){ errEl.textContent = 'Enter both email and password.'; errEl.style.display = 'block'; return; }
+  const locked = authIsLocked(email);
+  if(locked){ errEl.textContent = `Too many failed attempts. Try again in ${locked} seconds.`; errEl.style.display = 'block'; return; }
   const client = getSupabaseClient();
   if(!client){ errEl.textContent = 'Supabase library did not load, check your connection.'; errEl.style.display = 'block'; return; }
   try{
     const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if(error){ errEl.textContent = 'That email and password combination was not recognized.'; errEl.style.display = 'block'; return; }
+    if(error){
+      const fails = authRecordFail(email);
+      const remaining = AUTH_MAX_FAILS - fails;
+      errEl.textContent = remaining <= 0
+        ? 'Too many failed attempts. Sign-in is locked for 5 minutes.'
+        : `That email and password combination was not recognized.${remaining <= 2 ? ` ${remaining} attempt${remaining===1?'':'s'} remaining.` : ''}`;
+      errEl.style.display = 'block';
+      return;
+    }
+    authClearFails(email);
     agencySupabaseSession = data.session;
     agencyAccountRequest = await ensureAgencyAccountRequest(data.session);
     await refreshAccountRequests();
@@ -10519,7 +10547,7 @@ async function signUpAgencySupabase(){
   errEl.style.display = 'none';
   errEl.style.color = 'var(--red-text)';
   if(!email || !password){ errEl.textContent = 'Enter both email and password.'; errEl.style.display = 'block'; return; }
-  if(password.length < 6){ errEl.textContent = 'Use a password with at least 6 characters.'; errEl.style.display = 'block'; return; }
+  if(password.length < 12){ errEl.textContent = 'Use a password with at least 12 characters.'; errEl.style.display = 'block'; return; }
   const client = getSupabaseClient();
   if(!client){ errEl.textContent = 'Supabase library did not load, check your connection.'; errEl.style.display = 'block'; return; }
   try{
@@ -11080,6 +11108,40 @@ function startHotkeyCapture(actionKey, btn){
 let gateMode = 'signin';
 let gateListenerAttached = false;
 let gateNotice = '';
+
+/* ---- client-side login rate limiter ---- */
+const AUTH_FAIL_KEY = 'favze_auth_fails';
+const AUTH_LOCK_KEY = 'favze_auth_lock';
+const AUTH_MAX_FAILS = 5;
+const AUTH_LOCK_MS   = 5 * 60 * 1000; // 5 minutes
+function authRecordFail(email){
+  const now = Date.now();
+  let fails = {};
+  try{ fails = JSON.parse(sessionStorage.getItem(AUTH_FAIL_KEY)||'{}'); }catch(e){}
+  fails[email] = (fails[email]||0) + 1;
+  try{ sessionStorage.setItem(AUTH_FAIL_KEY, JSON.stringify(fails)); }catch(e){}
+  if(fails[email] >= AUTH_MAX_FAILS){
+    try{ sessionStorage.setItem(AUTH_LOCK_KEY + '_' + email, String(now + AUTH_LOCK_MS)); }catch(e){}
+  }
+  return fails[email];
+}
+function authClearFails(email){
+  try{
+    const fails = JSON.parse(sessionStorage.getItem(AUTH_FAIL_KEY)||'{}');
+    delete fails[email];
+    sessionStorage.setItem(AUTH_FAIL_KEY, JSON.stringify(fails));
+    sessionStorage.removeItem(AUTH_LOCK_KEY + '_' + email);
+  }catch(e){}
+}
+function authIsLocked(email){
+  try{
+    const until = Number(sessionStorage.getItem(AUTH_LOCK_KEY + '_' + email)||'0');
+    if(!until) return false;
+    if(Date.now() < until) return Math.ceil((until - Date.now()) / 1000);
+    sessionStorage.removeItem(AUTH_LOCK_KEY + '_' + email);
+    return false;
+  }catch(e){ return false; }
+}
 function ensureGateEl(){
   let el = document.getElementById('crmGate');
   if(!el){
@@ -11133,9 +11195,13 @@ function gateMsg(text, good){
   m.textContent = text;
 }
 async function gateSubmit(){
-  const email = (document.getElementById('gate_email')||{}).value;
+  const email = (document.getElementById('gate_email')||{}).value.trim();
   const password = (document.getElementById('gate_password')||{}).value;
   if(!email || !password){ gateMsg('Enter both email and password.'); return; }
+  if(gateMode==='signin'){
+    const locked = authIsLocked(email);
+    if(locked){ gateMsg(`Too many failed attempts. Try again in ${locked} seconds.`); return; }
+  }
   const client = getSupabaseClient();
   if(!client){ gateMsg('The sign-in service did not load. Check your connection and refresh.'); return; }
   const btn = document.getElementById('gate_btn');
@@ -11143,7 +11209,7 @@ async function gateSubmit(){
   try{
     let session = null;
     if(gateMode==='signup'){
-      if(password.length < 6){ gateMsg('Use a password with at least 6 characters.'); return; }
+      if(password.length < 12){ gateMsg('Use a password with at least 12 characters.'); return; }
       const { data, error } = await client.auth.signUp({ email: email.trim(), password });
       if(error){ gateMsg(error.message || 'Could not create that account.'); return; }
       if(!data.session){
@@ -11154,12 +11220,20 @@ async function gateSubmit(){
       }
       session = data.session;
     } else {
-      const { data, error } = await client.auth.signInWithPassword({ email: email.trim(), password });
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
       if(error){
-        if(/confirm/i.test(error.message||'')) gateMsg('Confirm your email first. Check your inbox for the Favze confirmation link, then sign in.');
-        else gateMsg('That email and password combination was not recognized.');
+        const fails = authRecordFail(email);
+        const remaining = AUTH_MAX_FAILS - fails;
+        if(remaining <= 0){
+          gateMsg('Too many failed attempts. Sign-in is locked for 5 minutes.');
+        } else if(/confirm/i.test(error.message||'')){
+          gateMsg('Confirm your email first. Check your inbox for the Favze confirmation link, then sign in.');
+        } else {
+          gateMsg(`That email and password combination was not recognized.${remaining <= 2 ? ` ${remaining} attempt${remaining===1?'':'s'} remaining before lockout.` : ''}`);
+        }
         return;
       }
+      authClearFails(email);
       session = data.session;
     }
     agencySupabaseSession = session;

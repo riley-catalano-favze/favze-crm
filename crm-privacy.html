@@ -148,8 +148,8 @@
           </div>
 
           <div>
-            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">No brute-force protection on sign-in</p>
-            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">Supabase's default auth settings do not rate-limit sign-in attempts unless you explicitly enable lockout. An attacker who knows a team member's email address can attempt unlimited passwords. Enabling leaked password protection and login rate limits in Supabase Auth settings closes this gap.</p>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">Limited brute-force protection on sign-in</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">The sign-in screen locks out an email address for 5 minutes after 5 failed attempts (client-side). Supabase server-side rate limiting is not yet enabled, so this lock applies per-browser only and does not block attempts from other devices or direct API calls. Enabling server-side rate limiting in Supabase Auth settings would close this fully.</p>
           </div>
 
           <div>
@@ -163,13 +163,13 @@
           </div>
 
           <div>
-            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">MSAL token cached in localStorage</p>
-            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">The Outlook integration stores Microsoft authentication tokens in <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> by MSAL design (configured as <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">cacheLocation: 'localStorage'</code>). The same physical access attack that exposes CRM data also exposes a live Microsoft auth token. Anyone who extracts it from an unlocked machine could replay it to send email from the account until it expires.</p>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">MSAL token scoped to session</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">The Outlook integration now stores Microsoft authentication tokens in <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">sessionStorage</code> rather than <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code>, so the token is cleared when the browser tab closes. Physical access to an unlocked, open tab still exposes it until the tab is closed or the session expires.</p>
           </div>
 
           <div>
-            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">Tab-sharing exposes all data</p>
-            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;"><code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> persists until explicitly cleared. If a team member shares their screen, hands off a laptop, or uses a shared machine without signing out, the next person to open the browser has full read-write access to all CRM data with no authentication prompt.</p>
+            <p style="font-size:13px;font-weight:700;color:var(--navy);margin:0 0 4px;">Idle sessions auto sign out</p>
+            <p style="font-size:13px;color:var(--ink);line-height:1.6;margin:0;">The CRM now signs out automatically after 30 minutes of inactivity. CRM data still lives in <code style="font-family:'JetBrains Mono',monospace;font-size:12px;background:var(--off-white);padding:1px 5px;border-radius:4px;">localStorage</code> and can be read directly via DevTools even after sign-out. Do not use the CRM on shared or public machines.</p>
           </div>
         </div>
 
