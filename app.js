@@ -11327,10 +11327,14 @@ async function gateSubmitPasswordReset(){
   setTimeout(()=>{ window.history.replaceState(null,'',window.location.pathname); applyAuthGate(); },1200);
 }
 (function handlePasswordReset(){
+  // Support both hash-based (#type=recovery) and query-param-based (?code=...) reset links.
+  // Supabase PKCE flow uses query params; older implicit flow uses hash fragments.
   const hash = window.location.hash;
-  if(!hash) return;
-  const params = new URLSearchParams(hash.replace(/^#/, ''));
-  if(params.get('type') !== 'recovery') return;
+  const search = window.location.search;
+  const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
+  const searchParams = new URLSearchParams(search);
+  const isRecovery = hashParams.get('type') === 'recovery' || searchParams.get('type') === 'recovery' || searchParams.has('code');
+  if(!isRecovery) return;
   const client = getSupabaseClient();
   if(!client) return;
   client.auth.onAuthStateChange((event) => {
