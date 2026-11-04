@@ -5073,7 +5073,7 @@ async function saveEsignProposal(){
       title, body_html, status: 'sent'
     }).select('id').single();
     if(error) throw error;
-    const link = `https://favze.com/portal-proposal.html?id=${data.id}`;
+    const link = `https://portal.favze.com/portal-proposal.html?id=${data.id}`;
     await navigator.clipboard.writeText(link).catch(()=>{});
     closeModal();
     showToast('Proposal created - signing link copied to clipboard');
@@ -5087,7 +5087,7 @@ async function openEsignProposalDetail(id){
     const { data, error } = await sb.from('proposals').select('*').eq('id',id).single();
     if(error) throw error;
     const p = data;
-    const link = `https://favze.com/portal-proposal.html?id=${p.id}`;
+    const link = `https://portal.favze.com/portal-proposal.html?id=${p.id}`;
     document.getElementById('modalPanel').style.maxWidth = '680px';
     document.getElementById('modalTitle').textContent = p.title;
     document.getElementById('modalBody').innerHTML = `
@@ -8446,7 +8446,7 @@ async function notifyClientNewContent(contactId, contentTitle, contentType){
     await fetch(SUPABASE_URL+'/functions/v1/client-content-notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+SUPABASE_KEY },
-      body: JSON.stringify({ clientName, clientEmail, contentTitle, contentType, portalUrl: 'https://portal.favze.com/portal-content.html' })
+      body: JSON.stringify({ clientName, clientEmail, contentTitle, contentType, portalUrl: 'https://portal.favze.com/portal-calendar.html' })
     });
   }catch(e){ console.warn('Client content notify failed (non-fatal):', e); }
 }
