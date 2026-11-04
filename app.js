@@ -11314,36 +11314,35 @@ async function applyAuthGate(){
   return false;
 }
 // Password reset handler -- detects Supabase recovery token in URL hash
+async function gateSubmitPasswordReset(){
+  const pw = document.getElementById('reset_pw').value;
+  const msg = document.getElementById('reset_msg');
+  const btn = document.getElementById('reset_btn');
+  if(pw.length < 12){ msg.textContent='Use at least 12 characters.'; return; }
+  btn.disabled=true; btn.style.opacity='.7';
+  const c = getSupabaseClient();
+  const {error} = await c.auth.updateUser({password: pw});
+  if(error){ msg.textContent=error.message||'Could not update password.'; btn.disabled=false; btn.style.opacity='1'; return; }
+  msg.style.color='#067647'; msg.textContent='Password updated. Signing you in...';
+  setTimeout(()=>{ window.history.replaceState(null,'',window.location.pathname); applyAuthGate(); },1200);
+}
 (function handlePasswordReset(){
   const hash = window.location.hash;
   if(!hash) return;
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   if(params.get('type') !== 'recovery') return;
-  // Exchange the token so the session is live, then show the reset form
   const client = getSupabaseClient();
   if(!client) return;
-  client.auth.onAuthStateChange((event, session) => {
+  client.auth.onAuthStateChange((event) => {
     if(event === 'PASSWORD_RECOVERY'){
-      // Show password reset form over the gate
       const el = ensureGateEl();
       el.style.display = 'flex';
       el.innerHTML = gateShell(`
         <p style="font-size:14px; font-weight:700; color:#04305f; margin:10px 0 8px;">Set a new password</p>
         <p style="font-size:13px; color:#5b6b80; margin-bottom:16px;">Choose a strong password with at least 12 characters.</p>
-        <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">New Password</label><input id="reset_pw" type="password" autocomplete="new-password" placeholder="••••••••" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
+        <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">New Password</label><input id="reset_pw" type="password" autocomplete="new-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" onkeydown="if(event.key==='Enter')gateSubmitPasswordReset()" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
         <div id="reset_msg" style="font-size:12.5px; margin-bottom:12px; min-height:16px; color:#b42318;"></div>
-        <button id="reset_btn" type="button" style="width:100%; padding:12px; border:none; border-radius:9px; background:#04305f; color:#fff; font-weight:700; font-size:14px; cursor:pointer;" onclick="(async()=>{
-          const pw = document.getElementById('reset_pw').value;
-          const msg = document.getElementById('reset_msg');
-          const btn = document.getElementById('reset_btn');
-          if(pw.length < 12){ msg.textContent='Use at least 12 characters.'; return; }
-          btn.disabled=true; btn.style.opacity='.7';
-          const c = getSupabaseClient();
-          const {error} = await c.auth.updateUser({password: pw});
-          if(error){ msg.textContent=error.message||'Could not update password.'; btn.disabled=false; btn.style.opacity='1'; return; }
-          msg.style.color='#067647'; msg.textContent='Password updated. Signing you in...';
-          setTimeout(()=>{ window.history.replaceState(null,'',window.location.pathname); applyAuthGate(); },1200);
-        })()">Set Password</button>`);
+        <button id="reset_btn" type="button" onclick="gateSubmitPasswordReset()" style="width:100%; padding:12px; border:none; border-radius:9px; background:#04305f; color:#fff; font-weight:700; font-size:14px; cursor:pointer;">Set Password</button>`);
     }
   });
 })();
