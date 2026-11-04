@@ -8424,6 +8424,31 @@ async function saveContentForm(){
   }
   await saveData(); closeModal(); render();
   showToast(editingContentId ? 'Content updated' : 'Content added');
+  // Notify client by email if content is newly visible to them
+  if(!editingContentId && payload.visibleToClient && payload.contactId){
+    notifyClientNewContent(payload.contactId, payload.title || 'New content', payload.type);
+  }
+}
+async function notifyClientNewContent(contactId, contentTitle, contentType){
+  const c = DATA.contacts.find(x=>x.id===contactId);
+  if(!c || !c.portalUid) return;
+  // Look up the client's email from their portal auth record
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  try{
+    // We pass the client's display name and content title; the edge function emails the agency.
+    // For the client-facing email we call a separate path using their email from CRM data.
+    const clientEmail = c.email;
+    const clientName = c.name;
+    if(!clientEmail) return;
+    const SUPABASE_URL = 'https://ozbhlqgytfyjdgkoyhkt.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_35rPBJVeCiEETVdBP0dLlw_OmpU77Vd';
+    await fetch(SUPABASE_URL+'/functions/v1/client-content-notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+SUPABASE_KEY },
+      body: JSON.stringify({ clientName, clientEmail, contentTitle, contentType, portalUrl: 'https://favze.com/portal-content.html' })
+    });
+  }catch(e){ console.warn('Client content notify failed (non-fatal):', e); }
 }
 async function deleteContentItem(id){
   DATA.contentCalendar = DATA.contentCalendar.filter(x=>x.id!==id);
@@ -9062,7 +9087,7 @@ function openEditModal(id){
     </div>
   `;
   document.getElementById('modalBackdrop').classList.add('open');
-  if(c.portalUid) { loadExtraDeliverablesForContact(c); loadClientIntelForContact(c); }
+  if(c.portalUid) { loadExtraDeliverablesForContact(c); loadClientIntelForContact(c); loadInvoicesForContact(c); loadBrandAssetsForContact(c); }
 }
 function closeModal(){ document.getElementById('modalBackdrop').classList.remove('open'); document.getElementById('modalPanel').style.maxWidth=''; editingId=null; publishQueueState=null; massPublishQueue=null; }
 async function unlinkContactPortalUid(id){
@@ -9273,6 +9298,185 @@ async function deleteTimeEntry(entryId, contactId){
     loadClientIntelForContact(c);
   }catch(err){ console.error(err); showToast('Could not remove entry'); }
 }
+// ── Invoices ────────────────────────────────────────────────────────────────
+async function loadInvoicesForContact(c){
+  const wrap = document.getElementById('invoices-wrap-'+c.id);
+  if(!wrap) return;
+  const sb = getSupabaseClient();
+  if(!sb){ wrap.innerHTML = '<p style="color:var(--slate);font-size:13px;">Connect your agency account to load invoices.</p>'; return; }
+  try{
+    const { data, error } = await sb.from('invoices').select('*').eq('client_id', c.portalUid).order('created_at',{ascending:false});
+    if(error) throw error;
+    const rows = data || [];
+    if(!rows.length){ wrap.innerHTML = '<p style="color:var(--slate);font-size:13px;">No invoices yet. Click "+ New Invoice" to create one.</p>'; return; }
+    const statusColor = s => s==='paid'?'#276749':s==='overdue'?'#9b2c2c':s==='cancelled'?'#718096':'#92400e';
+    const statusBg   = s => s==='paid'?'#c6f6d5':s==='overdue'?'#fed7d7':s==='cancelled'?'#e2e8f0':'#fef3c7';
+    wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="color:var(--slate);font-size:11.5px;border-bottom:1px solid var(--line);">
+        <th style="text-align:left;padding:5px 6px;">#</th>
+        <th style="text-align:left;padding:5px 6px;">Description</th>
+        <th style="text-align:left;padding:5px 6px;">Amount</th>
+        <th style="text-align:left;padding:5px 6px;">Due</th>
+        <th style="text-align:left;padding:5px 6px;">Status</th>
+        <th style="padding:5px 6px;"></th>
+      </tr></thead>
+      <tbody>${rows.map(inv=>`<tr style="border-top:1px solid var(--line);">
+        <td style="padding:7px 6px;font-size:11.5px;color:var(--slate);">${esc(inv.invoice_number||'-')}</td>
+        <td style="padding:7px 6px;font-weight:600;">${esc(inv.description||'Invoice')}</td>
+        <td style="padding:7px 6px;">${inv.amount!=null?'$'+Number(inv.amount).toFixed(2):'-'}</td>
+        <td style="padding:7px 6px;font-size:11.5px;color:var(--slate);">${inv.due_date?fmtDate(inv.due_date):'-'}</td>
+        <td style="padding:7px 6px;"><span style="background:${statusBg(inv.status)};color:${statusColor(inv.status)};border-radius:4px;padding:2px 7px;font-size:11px;font-weight:700;">${inv.status}</span></td>
+        <td style="padding:7px 6px;white-space:nowrap;">
+          ${inv.payment_link?`<a href="${esc(inv.payment_link)}" target="_blank" class="btn-small" style="text-decoration:none;">Pay link</a> `:''}
+          <button class="btn-small" onclick="markInvoicePaid('${inv.id}','${c.id}')">Mark paid</button>
+          <button class="btn-small" onclick="deleteInvoice('${inv.id}','${c.id}')">Delete</button>
+        </td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }catch(err){ console.error(err); wrap.innerHTML = '<p style="color:var(--red-text);font-size:13px;">Could not load invoices.</p>'; }
+}
+function openNewInvoiceModal(contactId){
+  const c = DATA.contacts.find(x=>x.id===contactId);
+  if(!c || !c.portalUid){ showToast('Link this contact to a Portal account first'); return; }
+  showPromptModal({
+    title: 'New Invoice',
+    fields:[
+      {id:'inv_num',label:'Invoice Number',type:'text',placeholder:'e.g. INV-001'},
+      {id:'inv_desc',label:'Description',type:'text',placeholder:'e.g. Social Media Management - November'},
+      {id:'inv_amount',label:'Amount ($)',type:'number',placeholder:'0.00'},
+      {id:'inv_due',label:'Due Date',type:'date'},
+      {id:'inv_link',label:'Stripe Payment Link (optional)',type:'url',placeholder:'https://buy.stripe.com/...'},
+    ],
+    confirmLabel:'Create Invoice',
+    onConfirm: async (vals)=>{
+      const sb = getSupabaseClient();
+      if(!sb) return;
+      const { error } = await sb.from('invoices').insert({
+        client_id: c.portalUid,
+        invoice_number: vals.inv_num || null,
+        description: vals.inv_desc || 'Invoice',
+        amount: parseFloat(vals.inv_amount) || 0,
+        due_date: vals.inv_due || null,
+        payment_link: vals.inv_link || null,
+        status: 'unpaid'
+      });
+      if(error){ showToast('Could not create invoice'); console.error(error); return; }
+      showToast('Invoice created');
+      loadInvoicesForContact(c);
+    }
+  });
+}
+async function markInvoicePaid(invoiceId, contactId){
+  const c = DATA.contacts.find(x=>x.id===contactId);
+  if(!c) return;
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  const { error } = await sb.from('invoices').update({ status:'paid', paid_at: new Date().toISOString() }).eq('id', invoiceId);
+  if(error){ showToast('Could not update invoice'); return; }
+  showToast('Marked as paid');
+  loadInvoicesForContact(c);
+}
+async function deleteInvoice(invoiceId, contactId){
+  if(!confirm('Delete this invoice?')) return;
+  const c = DATA.contacts.find(x=>x.id===contactId);
+  if(!c) return;
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  const { error } = await sb.from('invoices').delete().eq('id', invoiceId);
+  if(error){ showToast('Could not delete invoice'); return; }
+  showToast('Invoice deleted');
+  loadInvoicesForContact(c);
+}
+
+// ── Brand Assets ─────────────────────────────────────────────────────────────
+async function loadBrandAssetsForContact(c){
+  const wrap = document.getElementById('brandassets-wrap-'+c.id);
+  if(!wrap) return;
+  const sb = getSupabaseClient();
+  if(!sb){ wrap.innerHTML = '<p style="color:var(--slate);font-size:13px;">Connect your agency account to load brand assets.</p>'; return; }
+  try{
+    const { data, error } = await sb.from('brand_assets').select('*').eq('client_id', c.portalUid).order('uploaded_at',{ascending:false});
+    if(error) throw error;
+    const rows = data || [];
+    const uploadHtml = `<div style="margin-top:16px;">
+      <label style="font-size:11.5px;font-weight:700;color:var(--slate);text-transform:uppercase;">Upload an asset</label>
+      <div style="display:flex;gap:8px;margin-top:6px;align-items:center;">
+        <input type="file" id="ba-file-${c.id}" accept="image/*,.pdf,.ttf,.otf,.woff,.woff2,.zip" style="font-size:12px;flex:1;">
+        <button class="btn-small" onclick="uploadBrandAsset('${c.id}')">Upload</button>
+      </div>
+      <p id="ba-upload-status-${c.id}" style="font-size:11.5px;color:var(--slate);margin-top:5px;"></p>
+    </div>`;
+    if(!rows.length){
+      wrap.innerHTML = '<p style="color:var(--slate);font-size:13px;">No brand assets uploaded yet. The client can upload from their portal, or upload one here.</p>'+uploadHtml;
+      return;
+    }
+    const fileIcon = t => t&&t.startsWith('image')?'🖼️':t==='application/pdf'?'📄':t&&t.includes('font')?'🔤':'📦';
+    const fmtSize = b => b>1048576?(b/1048576).toFixed(1)+' MB':b>1024?(b/1024).toFixed(0)+' KB':b+' B';
+    wrap.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:4px;">
+      ${rows.map(a=>`<div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:12px;">
+        <div style="font-size:22px;margin-bottom:6px;">${fileIcon(a.file_type)}</div>
+        <div style="font-weight:600;word-break:break-all;margin-bottom:3px;">${esc(a.file_name)}</div>
+        <div style="color:var(--slate);font-size:11px;margin-bottom:8px;">${a.file_size_bytes?fmtSize(a.file_size_bytes):''}</div>
+        <div style="display:flex;gap:5px;">
+          <button class="btn-small" onclick="downloadBrandAsset('${a.file_path}','${esc(a.file_name)}')">Download</button>
+          <button class="btn-small" onclick="deleteBrandAsset('${a.id}','${a.file_path}','${c.id}')">Delete</button>
+        </div>
+      </div>`).join('')}
+    </div>${uploadHtml}`;
+  }catch(err){ console.error(err); wrap.innerHTML = '<p style="color:var(--red-text);font-size:13px;">Could not load brand assets.</p>'; }
+}
+async function uploadBrandAsset(contactId){
+  const c = DATA.contacts.find(x=>x.id===contactId);
+  if(!c || !c.portalUid) return;
+  const fileInput = document.getElementById('ba-file-'+contactId);
+  const statusEl = document.getElementById('ba-upload-status-'+contactId);
+  if(!fileInput || !fileInput.files.length){ showToast('Select a file first'); return; }
+  const file = fileInput.files[0];
+  if(file.size > 20971520){ showToast('File exceeds 20 MB limit'); return; }
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  if(statusEl) statusEl.textContent = 'Uploading...';
+  const path = `${c.portalUid}/${Date.now()}_${file.name.replace(/\s+/g,'_')}`;
+  try{
+    const { error: upErr } = await sb.storage.from('brand-assets').upload(path, file, { contentType: file.type, upsert: false });
+    if(upErr) throw upErr;
+    const { error: dbErr } = await sb.from('brand_assets').insert({
+      client_id: c.portalUid, file_name: file.name, file_path: path,
+      file_type: file.type, file_size_bytes: file.size
+    });
+    if(dbErr) throw dbErr;
+    if(statusEl) statusEl.textContent = '';
+    fileInput.value = '';
+    showToast('Asset uploaded');
+    loadBrandAssetsForContact(c);
+  }catch(err){ console.error(err); if(statusEl) statusEl.textContent = 'Upload failed.'; showToast('Upload failed'); }
+}
+async function downloadBrandAsset(filePath, fileName){
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  try{
+    const { data, error } = await sb.storage.from('brand-assets').download(filePath);
+    if(error) throw error;
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName; a.click();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  }catch(err){ console.error(err); showToast('Could not download file'); }
+}
+async function deleteBrandAsset(assetId, filePath, contactId){
+  if(!confirm('Delete this asset? This cannot be undone.')) return;
+  const c = DATA.contacts.find(x=>x.id===contactId);
+  if(!c) return;
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  try{
+    await sb.storage.from('brand-assets').remove([filePath]);
+    await sb.from('brand_assets').delete().eq('id', assetId);
+    showToast('Asset deleted');
+    loadBrandAssetsForContact(c);
+  }catch(err){ console.error(err); showToast('Could not delete asset'); }
+}
+
 function openAddExtraDeliverableModal(contactId){
   const c = DATA.contacts.find(x=>x.id===contactId);
   if(!c || !c.portalUid){ showToast('Link this contact to a Portal account first'); return; }
@@ -9350,7 +9554,7 @@ function modalFormHTML(c){
   const tabs = [['overview','Overview'],['contactdetails','Contact Details'],['tags','Tags & Services'],['company','Person Details']];
   if(c.type==='prospect' || c.type==='lead'){ tabs.push(['qualification','Lead Qualification']); }
   tabs.push(['salesactivity','Sales Activity'],['documents','Documents'],['internal','Internal & Activity']);
-  if(isEdit && c.portalUid){ tabs.push(['clientintel','Client Intel']); }
+  if(isEdit && c.portalUid){ tabs.push(['invoices','Invoices'],['brandassets','Brand Assets'],['clientintel','Client Intel']); }
 
   return `
     <div class="settings-tabs" style="margin-bottom:14px;">
@@ -9583,6 +9787,17 @@ function modalFormHTML(c){
       </div>` : ''}
     </div>
     ${(isEdit && c.portalUid) ? `
+    <div class="contact-tab-panel" data-tab="invoices" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="font-weight:700; font-size:13px;">Invoices</div>
+        <button type="button" class="btn-small" onclick="openNewInvoiceModal('${c.id}')">+ New Invoice</button>
+      </div>
+      <div id="invoices-wrap-${c.id}"><p style="color:var(--slate); font-size:13px;">Loading invoices...</p></div>
+    </div>
+    <div class="contact-tab-panel" data-tab="brandassets" style="display:none;">
+      <div style="font-weight:700; font-size:13px; margin-bottom:14px;">Brand Assets</div>
+      <div id="brandassets-wrap-${c.id}"><p style="color:var(--slate); font-size:13px;">Loading assets...</p></div>
+    </div>
     <div class="contact-tab-panel" data-tab="clientintel" style="display:none;">
       <div id="ci-wrap-${c.id}">
         <p style="color:var(--slate); font-size:13px;">Loading client intel...</p>
