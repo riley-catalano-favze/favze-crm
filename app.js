@@ -112,7 +112,8 @@ function crmContentItemToPortalShape(item){
     date: item.date || todayISO(),
     type: contentTypeMeta(item.type).label,
     title: item.title || contentTypeMeta(item.type).label,
-    desc: item.description || item.caption || '',
+    desc: item.description || '',
+    caption: item.caption || '',
     status,
     project: contact ? contact.name : 'Favze',
     imageUrls: item.imageUrls || [],
@@ -278,8 +279,13 @@ async function pushRemote(isInsert){
   if(!sb){ setSyncStatus('Offline', 'offline'); return; }
   setSyncStatus('Saving…', 'saving');
   const nextRev = knownRev + 1;
-  const { data: { user } } = await sb.auth.getUser();
-  const payload = { id:'main', data: DATA, rev: nextRev, updated_at: new Date().toISOString(), updated_by: user?.id };
+  let userId;
+  try{
+    const { data: { user }, error: userErr } = await sb.auth.getUser();
+    if(userErr) throw userErr;
+    userId = user?.id;
+  }catch(e){ console.error('pushRemote: session expired or missing', e); setSyncStatus('Offline', 'offline'); return; }
+  const payload = { id:'main', data: DATA, rev: nextRev, updated_at: new Date().toISOString(), updated_by: userId };
   let error;
   if(isInsert){
     ({ error } = await sb.from('crm_data').upsert(payload, { onConflict:'id' }));
@@ -7956,7 +7962,10 @@ async function handleContentPhotoUpload(input){
       console.error(err);
       const ph = document.getElementById('ct_uploading_'+placeholderIdx);
       if(ph) ph.remove();
-      showToast('Photo upload failed: ' + (err.message||'unknown error').slice(0,100));
+      const errMsg = (err.message||'unknown error').slice(0,120);
+      showToast('Photo upload failed: ' + errMsg);
+      const errEl = document.getElementById('ct_photoError');
+      if(errEl){ errEl.textContent = 'Upload failed: ' + errMsg; errEl.style.display = 'block'; setTimeout(()=>{ errEl.style.display='none'; }, 7000); }
     }
   }
   input.value = '';
@@ -8038,6 +8047,7 @@ function contentFormHTML(item, dateStr){
     <div class="field">
       <label>Photos for client review</label>
       <div id="ct_photoGrid" class="photo-upload-grid">${renderPhotoUploadThumbs()}</div>
+      <div id="ct_photoError" style="font-size:12px; color:#b42318; margin-bottom:6px; display:none;"></div>
       <button type="button" class="btn-small" onclick="document.getElementById('ct_photoInput').click()">${iconUpload()} Upload photos</button>
       <input type="file" id="ct_photoInput" accept="image/*" multiple style="display:none;" onchange="handleContentPhotoUpload(this)">
       <p style="font-size:11px; color:var(--slate); margin-top:6px;">Compressed to WebP in your browser before upload, so a 10MB phone photo becomes ~150KB. Stored in Supabase, not in this app's own data.</p>
@@ -11333,7 +11343,8 @@ const _isRecoveryLink = (function handlePasswordReset(){
   const search = window.location.search;
   const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
   const searchParams = new URLSearchParams(search);
-  const isRecovery = hashParams.get('type') === 'recovery' || searchParams.get('type') === 'recovery' || searchParams.has('code');
+  const codeVal = searchParams.get('code');
+  const isRecovery = hashParams.get('type') === 'recovery' || searchParams.get('type') === 'recovery' || (typeof codeVal === 'string' && codeVal.length > 10);
   if(!isRecovery) return false;
   const client = getSupabaseClient();
   if(!client) return false;
