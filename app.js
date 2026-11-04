@@ -1500,6 +1500,7 @@ function render(){
     content.innerHTML = renderQuotesView();
   } else if(currentView === 'proposals'){
     content.innerHTML = renderProposalsView();
+    loadEsignProposals();
   } else if(currentView === 'pricecalc'){
     content.innerHTML = renderPriceCalculatorView();
   } else if(currentView === 'servicerequests'){
@@ -4958,10 +4959,18 @@ function renderProposalsView(){
   rows.sort((a,b)=>(b.updatedAt||b.dateAdded||'').localeCompare(a.updatedAt||a.dateAdded||''));
   return `
     <div class="page-head">
-      <div><h1>Proposals</h1><p>Formal proposals sent to prospects and clients, optionally built off a saved quote. Accepting one auto-links to a Deal.</p></div>
-      <div class="date-pill">${DATA.proposals.length} total</div>
+      <div><h1>Proposals</h1><p>Build proposals inside the CRM, send for e-signature, and auto-convert signed prospects to clients.</p></div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-primary" onclick="openNewEsignProposalModal()">+ E-Sign Proposal</button>
+        <button class="btn-ghost" onclick="openNewProposalModal()">+ Internal Proposal</button>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:20px;">
+      <div style="font-weight:700; font-size:13px; margin-bottom:12px; color:var(--ink);">E-Sign Proposals</div>
+      <div id="esign-proposals-wrap" style="font-size:13px; color:var(--slate);">Loading...</div>
     </div>
     <div class="panel">
+      <div style="font-weight:700; font-size:13px; margin-bottom:12px; color:var(--ink);">Internal Proposals</div>
       <table>
         <thead><tr><th>Title</th><th>Company</th><th>Linked Quote</th><th>Status</th><th>Updated</th><th></th></tr></thead>
         <tbody>
@@ -4984,11 +4993,156 @@ function renderProposalsView(){
                 <button class="btn-small" onclick="sendProposalViaOutlook('${p.id}')">${iconMail()} Email</button>
               </td>
             </tr>`;
-          }).join('') : `<tr class="empty-row"><td colspan="6">No proposals yet. Click "New Proposal" to add one.</td></tr>`}
+          }).join('') : `<tr class="empty-row"><td colspan="6">No internal proposals yet. Click "Internal Proposal" to add one.</td></tr>`}
         </tbody>
       </table>
     </div>
   `;
+}
+async function loadEsignProposals(){
+  const wrap = document.getElementById('esign-proposals-wrap');
+  if(!wrap) return;
+  if(!agencySupabaseSession || !agencyAccountRequest || !agencyAccountRequest.approved){
+    wrap.innerHTML = 'Connect your agency account in Settings to use e-sign proposals.';
+    return;
+  }
+  const sb = getSupabaseClient();
+  if(!sb){ wrap.innerHTML = 'Could not load.'; return; }
+  try{
+    const { data, error } = await sb.from('proposals').select('id,prospect_name,prospect_email,title,status,signed_at,created_at,client_id').order('created_at',{ascending:false});
+    if(error) throw error;
+    const rows = data || [];
+    if(!rows.length){ wrap.innerHTML = '<span style="color:var(--slate);">No e-sign proposals sent yet. Click "E-Sign Proposal" to create and send one.</span>'; return; }
+    const statusColor = s => s==='signed'?'#276749':s==='declined'?'#9b2c2c':s==='sent'?'#2b6cb0':'#744210';
+    const statusBg = s => s==='signed'?'#c6f6d5':s==='declined'?'#fed7d7':s==='sent'?'#bee3f8':'#fefcbf';
+    wrap.innerHTML = `<table style="width:100%; border-collapse:collapse; font-size:13px;">
+      <thead><tr style="color:var(--slate); font-size:11.5px; border-bottom:1px solid var(--line);">
+        <th style="text-align:left; padding:6px;">Title</th>
+        <th style="text-align:left; padding:6px;">Prospect</th>
+        <th style="text-align:left; padding:6px;">Status</th>
+        <th style="text-align:left; padding:6px;">Sent</th>
+        <th style="text-align:left; padding:6px;">Signed</th>
+        <th style="padding:6px;"></th>
+      </tr></thead>
+      <tbody>${rows.map(p=>`<tr style="border-top:1px solid var(--line);">
+        <td style="padding:7px 6px; font-weight:600;">${esc(p.title)}</td>
+        <td style="padding:7px 6px; color:var(--slate);">${esc(p.prospect_name||'')} ${p.prospect_email?`<div style="font-size:11px;">${esc(p.prospect_email)}</div>`:''}</td>
+        <td style="padding:7px 6px;"><span style="background:${statusBg(p.status)}; color:${statusColor(p.status)}; border-radius:4px; padding:2px 7px; font-size:11.5px; font-weight:600;">${p.status}</span>${p.status==='signed'&&!p.client_id?` <button class="btn-small" onclick="convertSignedProspectToClient('${p.id}','${esc(p.prospect_email)}','${esc(p.prospect_name)}')">Convert to client</button>`:''}</td>
+        <td style="padding:7px 6px; color:var(--slate); font-size:11.5px;">${fmtDate(p.created_at?.slice(0,10))}</td>
+        <td style="padding:7px 6px; color:var(--slate); font-size:11.5px;">${p.signed_at?fmtDate(p.signed_at.slice(0,10)):'-'}</td>
+        <td style="padding:7px 6px;"><button class="btn-small" onclick="openEsignProposalDetail('${p.id}')">View</button></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }catch(err){ console.error(err); wrap.innerHTML = 'Could not load e-sign proposals.'; }
+}
+function openNewEsignProposalModal(){
+  if(!agencySupabaseSession || !agencyAccountRequest || !agencyAccountRequest.approved){
+    showToast('Connect your agency account in Settings first');
+    return;
+  }
+  document.getElementById('modalPanel').style.maxWidth = '700px';
+  document.getElementById('modalTitle').textContent = 'New E-Sign Proposal';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="field-row">
+      ${fld('ep_prospect_name','Prospect Name','','Full name')}
+      ${fld('ep_prospect_email','Prospect Email','','email@company.com','email')}
+    </div>
+    ${fld('ep_title','Proposal Title','','e.g. Social Media Management Proposal')}
+    <div class="field"><label>Proposal Content (HTML supported)</label>
+      <textarea id="ep_body_html" rows="14" placeholder="Write your full proposal here. You can use HTML formatting."
+        style="font-family:monospace; font-size:12px;"></textarea>
+    </div>
+  `;
+  document.getElementById('modalFoot').innerHTML = `
+    <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+    <button class="btn-primary" onclick="saveEsignProposal()">Create and copy portal link</button>
+  `;
+  document.getElementById('modalBackdrop').classList.add('open');
+}
+async function saveEsignProposal(){
+  const name = document.getElementById('ep_prospect_name').value.trim();
+  const email = document.getElementById('ep_prospect_email').value.trim();
+  const title = document.getElementById('ep_title').value.trim();
+  const body_html = document.getElementById('ep_body_html').value.trim();
+  if(!name||!email||!title){ showToast('Name, email and title are all required'); return; }
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  try{
+    const { data, error } = await sb.from('proposals').insert({
+      prospect_name: name, prospect_email: email,
+      title, body_html, status: 'sent'
+    }).select('id').single();
+    if(error) throw error;
+    const link = `https://favze.com/portal-proposal.html?id=${data.id}`;
+    await navigator.clipboard.writeText(link).catch(()=>{});
+    closeModal();
+    showToast('Proposal created - signing link copied to clipboard');
+    loadEsignProposals();
+  }catch(err){ console.error(err); showToast('Could not create proposal'); }
+}
+async function openEsignProposalDetail(id){
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  try{
+    const { data, error } = await sb.from('proposals').select('*').eq('id',id).single();
+    if(error) throw error;
+    const p = data;
+    const link = `https://favze.com/portal-proposal.html?id=${p.id}`;
+    document.getElementById('modalPanel').style.maxWidth = '680px';
+    document.getElementById('modalTitle').textContent = p.title;
+    document.getElementById('modalBody').innerHTML = `
+      <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+        <div style="background:var(--paper); border-radius:8px; padding:10px 14px; flex:1;">
+          <div style="font-size:11px; color:var(--slate);">Prospect</div>
+          <div style="font-weight:700;">${esc(p.prospect_name)}</div>
+          <div style="font-size:12px; color:var(--slate);">${esc(p.prospect_email)}</div>
+        </div>
+        <div style="background:var(--paper); border-radius:8px; padding:10px 14px; min-width:120px;">
+          <div style="font-size:11px; color:var(--slate);">Status</div>
+          <div style="font-weight:700; text-transform:capitalize;">${p.status}</div>
+        </div>
+        ${p.signed_at?`<div style="background:var(--paper); border-radius:8px; padding:10px 14px;">
+          <div style="font-size:11px; color:var(--slate);">Signed by</div>
+          <div style="font-weight:700;">${esc(p.signed_name||'')}</div>
+          <div style="font-size:11.5px; color:var(--slate);">${fmtDate(p.signed_at.slice(0,10))}</div>
+        </div>`:''}
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11.5px; font-weight:700; color:var(--slate);">Signing Link</label>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <input value="${link}" readonly style="flex:1; font-size:12px; color:var(--slate);">
+          <button class="btn-small" onclick="navigator.clipboard.writeText('${link}').then(()=>showToast('Link copied'))">Copy</button>
+        </div>
+      </div>
+      <div style="border:1px solid var(--line); border-radius:8px; padding:14px; max-height:300px; overflow-y:auto; font-size:13.5px; line-height:1.6;">
+        ${p.body_html || '<em style="color:var(--slate);">No content</em>'}
+      </div>
+    `;
+    document.getElementById('modalFoot').innerHTML = `<button class="btn-ghost" onclick="closeModal()">Close</button>${p.status==='signed'?`<button class="btn-primary" onclick="convertSignedProspectToClient('${p.id}','${esc(p.prospect_email)}','${esc(p.prospect_name)}')">Convert to client</button>`:''}`;
+    document.getElementById('modalBackdrop').classList.add('open');
+  }catch(err){ console.error(err); showToast('Could not load proposal'); }
+}
+async function convertSignedProspectToClient(proposalId, email, name){
+  if(!confirm(`Convert ${name} to a client? This creates a CRM contact with client status.`)) return;
+  const existing = DATA.contacts.find(c=>c.email===email);
+  if(existing){
+    existing.type = 'customer';
+    await saveData();
+    showToast(`${name} updated to client status`);
+    closeModal(); render();
+    return;
+  }
+  const newContact = {
+    id: uid(), name, email, type:'customer', stage:'',
+    dateAdded: todayISO(), updatedAt: new Date().toISOString(),
+    companyId:null, assignedTo:null, source:'Referral', dealValue:0,
+    phone:'', notes:'', tags:[], portalUid:null, relationships:[],
+    contract:{clientSince:todayISO(), retainerType:'', monthlyRetainer:0, contractStart:todayISO(), contractEnd:'', autoRenew:false, ltv:0, estMonthlyHours:'', assetQuota:''},
+  };
+  DATA.contacts.push(newContact);
+  await saveData();
+  showToast(`${name} added as a client`);
+  closeModal(); render();
 }
 function sendProposalViaOutlook(id){
   const p = DATA.proposals.find(x=>x.id===id);
@@ -8908,7 +9062,7 @@ function openEditModal(id){
     </div>
   `;
   document.getElementById('modalBackdrop').classList.add('open');
-  if(c.portalUid) loadExtraDeliverablesForContact(c);
+  if(c.portalUid) { loadExtraDeliverablesForContact(c); loadClientIntelForContact(c); }
 }
 function closeModal(){ document.getElementById('modalBackdrop').classList.remove('open'); document.getElementById('modalPanel').style.maxWidth=''; editingId=null; publishQueueState=null; massPublishQueue=null; }
 async function unlinkContactPortalUid(id){
@@ -8960,6 +9114,164 @@ async function loadExtraDeliverablesForContact(c){
     console.error(err);
     container.innerHTML = 'Could not load extras, check your connection.';
   }
+}
+async function loadClientIntelForContact(c){
+  const wrap = document.getElementById('ci-wrap-'+c.id);
+  if(!wrap) return;
+  if(!agencySupabaseSession || !agencyAccountRequest || !agencyAccountRequest.approved){
+    wrap.innerHTML = '<span style="color:var(--slate);">Connect your agency account in Settings to view client intel.</span>';
+    return;
+  }
+  const sb = getSupabaseClient();
+  if(!sb){ wrap.innerHTML = 'Could not load.'; return; }
+  try{
+    const [ratingsRes, referralsRes, timeRes, crmRes] = await Promise.all([
+      sb.from('satisfaction_ratings').select('rating,comment,created_at').eq('client_id', c.portalUid).order('created_at',{ascending:false}).limit(10),
+      sb.from('referrals').select('id,referred_name,referred_email,status,created_at').eq('referrer_id', c.portalUid).order('created_at',{ascending:false}),
+      sb.from('time_entries').select('id,logged_by,description,hours,logged_date').eq('client_id', c.portalUid).order('logged_date',{ascending:false}).limit(50),
+      sb.from('crm_data').select('retainer_hours').eq('client_id', c.portalUid).maybeSingle()
+    ]);
+    const ratings = ratingsRes.data || [];
+    const referrals = referralsRes.data || [];
+    const entries = timeRes.data || [];
+    const retainerHours = crmRes.data?.retainer_hours || 0;
+    const totalHours = entries.reduce((s,e)=>s+(Number(e.hours)||0),0);
+    const pct = retainerHours > 0 ? Math.min(100, Math.round((totalHours/retainerHours)*100)) : null;
+    const burnColor = pct === null ? 'var(--teal)' : pct >= 90 ? '#e53e3e' : pct >= 75 ? '#dd6b20' : 'var(--teal)';
+    const starHTML = r => '&#9733;'.repeat(r)+'&#9734;'.repeat(5-r);
+    wrap.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:20px;">
+        <div>
+          <div style="font-weight:700; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--slate); margin-bottom:10px;">Satisfaction Ratings</div>
+          ${ratings.length ? ratings.map(r=>`
+            <div style="display:flex; gap:10px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--line);">
+              <span style="font-size:14px; color:#f6c90e; white-space:nowrap;">${starHTML(r.rating)}</span>
+              <div style="flex:1; font-size:12.5px;">
+                ${r.comment ? `<div style="color:var(--ink);">${esc(r.comment)}</div>` : ''}
+                <div style="color:var(--slate); font-size:11.5px; margin-top:2px;">${fmtDate(r.created_at?.slice(0,10))}</div>
+              </div>
+            </div>`).join('') : '<p style="color:var(--slate); font-size:12.5px;">No ratings yet.</p>'}
+        </div>
+        <div>
+          <div style="font-weight:700; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--slate); margin-bottom:10px;">Referrals</div>
+          ${referrals.length ? `<table style="width:100%; font-size:12.5px; border-collapse:collapse;">
+            <thead><tr style="color:var(--slate); font-size:11.5px;">
+              <th style="text-align:left; padding:4px 6px;">Name</th>
+              <th style="text-align:left; padding:4px 6px;">Email</th>
+              <th style="text-align:left; padding:4px 6px;">Status</th>
+              <th style="text-align:left; padding:4px 6px;">Date</th>
+            </tr></thead>
+            <tbody>${referrals.map(r=>`<tr style="border-top:1px solid var(--line);">
+              <td style="padding:6px;">${esc(r.referred_name||'')}</td>
+              <td style="padding:6px; color:var(--slate);">${esc(r.referred_email||'')}</td>
+              <td style="padding:6px;"><span style="background:${r.status==='converted'?'#c6f6d5':r.status==='signed'?'#bee3f8':'#fefcbf'}; color:${r.status==='converted'?'#276749':r.status==='signed'?'#2b6cb0':'#744210'}; border-radius:4px; padding:2px 6px; font-size:11px; font-weight:600;">${esc(r.status||'pending')}</span></td>
+              <td style="padding:6px; color:var(--slate);">${fmtDate(r.created_at?.slice(0,10))}</td>
+            </tr>`).join('')}</tbody>
+          </table>` : '<p style="color:var(--slate); font-size:12.5px;">No referrals submitted yet.</p>'}
+        </div>
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-weight:700; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--slate);">Time Tracking</div>
+            <button type="button" class="btn-small" onclick="openLogHoursModal('${c.id}')">${iconPlus()} Log hours</button>
+          </div>
+          <div style="display:flex; gap:16px; margin-bottom:12px; flex-wrap:wrap;">
+            <div style="text-align:center; min-width:70px;"><div style="font-size:22px; font-weight:800; color:var(--ink);">${totalHours.toFixed(1)}</div><div style="font-size:11px; color:var(--slate);">Hours used</div></div>
+            ${retainerHours > 0 ? `<div style="text-align:center; min-width:70px;"><div style="font-size:22px; font-weight:800; color:var(--ink);">${retainerHours}</div><div style="font-size:11px; color:var(--slate);">Retainer hrs</div></div>
+            <div style="flex:1; min-width:120px; display:flex; flex-direction:column; justify-content:center; gap:4px;">
+              <div style="display:flex; justify-content:space-between; font-size:11.5px;"><span style="color:var(--slate);">Burn rate</span><span style="font-weight:700; color:${burnColor};">${pct}%</span></div>
+              <div style="height:8px; background:var(--line); border-radius:4px; overflow:hidden;"><div style="width:${pct}%; height:100%; background:${burnColor}; border-radius:4px; transition:width .3s;"></div></div>
+              ${pct >= 90 ? `<div style="font-size:11px; color:#e53e3e; font-weight:600;">Over 90% burned - flag for client conversation</div>` : ''}
+            </div>` : `<div style="font-size:12.5px; color:var(--slate);">Set retainer hours on the Overview tab to track burn rate.</div>`}
+          </div>
+          ${entries.length ? `<div style="max-height:160px; overflow-y:auto;">
+            <table style="width:100%; font-size:12px; border-collapse:collapse;">
+              <thead><tr style="color:var(--slate); font-size:11px; position:sticky; top:0; background:var(--surface);">
+                <th style="text-align:left; padding:4px 6px;">Date</th>
+                <th style="text-align:left; padding:4px 6px;">Description</th>
+                <th style="text-align:left; padding:4px 6px;">By</th>
+                <th style="text-align:right; padding:4px 6px;">Hrs</th>
+                <th style="padding:4px 6px;"></th>
+              </tr></thead>
+              <tbody>${entries.map(e=>`<tr style="border-top:1px solid var(--line);">
+                <td style="padding:5px 6px; color:var(--slate);">${fmtDate(e.logged_date)}</td>
+                <td style="padding:5px 6px;">${esc(e.description||'')}</td>
+                <td style="padding:5px 6px; color:var(--slate);">${esc(e.logged_by||'')}</td>
+                <td style="padding:5px 6px; text-align:right; font-weight:600; font-family:monospace;">${Number(e.hours).toFixed(1)}</td>
+                <td style="padding:5px 6px;"><button type="button" class="btn-small" onclick="deleteTimeEntry('${e.id}','${c.id}')">x</button></td>
+              </tr>`).join('')}</tbody>
+            </table>
+          </div>` : '<p style="color:var(--slate); font-size:12.5px;">No hours logged yet.</p>'}
+        </div>
+      </div>`;
+    const retInp = document.getElementById('f_retainerHours');
+    if(retInp && !retInp.value) retInp.value = retainerHours > 0 ? retainerHours : '';
+    const retDisp = document.getElementById('retainerHoursDisplay_'+c.id);
+    if(retDisp) retDisp.textContent = retainerHours > 0 ? `Currently ${retainerHours} hrs/mo` : 'Not set';
+  }catch(err){
+    console.error(err);
+    wrap.innerHTML = 'Could not load client intel - check your connection.';
+  }
+}
+async function saveRetainerHours(contactId){
+  const c = DATA.contacts.find(x=>x.id===contactId);
+  if(!c || !c.portalUid) return;
+  const inp = document.getElementById('f_retainerHours');
+  if(!inp) return;
+  const hrs = Number(inp.value) || 0;
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  try{
+    const { error } = await sb.from('crm_data').upsert({ client_id: c.portalUid, retainer_hours: hrs }, { onConflict: 'client_id' });
+    if(error) throw error;
+    const disp = document.getElementById('retainerHoursDisplay_'+contactId);
+    if(disp) disp.textContent = hrs > 0 ? `Set to ${hrs} hrs/mo` : 'No retainer set';
+    showToast('Retainer hours saved');
+    loadClientIntelForContact(c);
+  }catch(err){ console.error(err); showToast('Could not save retainer hours'); }
+}
+async function openLogHoursModal(contactId){
+  const c = DATA.contacts.find(x=>x.id===contactId);
+  if(!c || !c.portalUid){ showToast('Link this contact to a Portal account first'); return; }
+  showPromptModal({
+    title: 'Log Hours',
+    fields: [
+      { id: 'hours', label: 'Hours', placeholder: 'e.g. 1.5', type: 'number' },
+      { id: 'description', label: 'Description', placeholder: 'e.g. Strategy call, blog drafts' },
+      { id: 'logged_date', label: 'Date', type: 'date' }
+    ],
+    confirmLabel: 'Log',
+    onConfirm: async ({ hours, description, logged_date }) => {
+      if(!hours) return;
+      const sb = getSupabaseClient();
+      if(!sb) return;
+      const me = DATA.users.find(u=>u.id===currentUserId);
+      try{
+        const { error } = await sb.from('time_entries').insert({
+          id: uid(), client_id: c.portalUid,
+          logged_by: me?.name || 'Agency',
+          description: description || '',
+          hours: Number(hours),
+          logged_date: logged_date || todayISO()
+        });
+        if(error) throw error;
+        showToast('Hours logged');
+        loadClientIntelForContact(c);
+      }catch(err){ console.error(err); showToast('Could not log hours'); }
+    }
+  });
+}
+async function deleteTimeEntry(entryId, contactId){
+  if(!confirm('Remove this time entry?')) return;
+  const c = DATA.contacts.find(x=>x.id===contactId);
+  if(!c) return;
+  const sb = getSupabaseClient();
+  if(!sb) return;
+  try{
+    const { error } = await sb.from('time_entries').delete().eq('id', entryId);
+    if(error) throw error;
+    showToast('Entry removed');
+    loadClientIntelForContact(c);
+  }catch(err){ console.error(err); showToast('Could not remove entry'); }
 }
 function openAddExtraDeliverableModal(contactId){
   const c = DATA.contacts.find(x=>x.id===contactId);
@@ -9038,6 +9350,7 @@ function modalFormHTML(c){
   const tabs = [['overview','Overview'],['contactdetails','Contact Details'],['tags','Tags & Services'],['company','Person Details']];
   if(c.type==='prospect' || c.type==='lead'){ tabs.push(['qualification','Lead Qualification']); }
   tabs.push(['salesactivity','Sales Activity'],['documents','Documents'],['internal','Internal & Activity']);
+  if(isEdit && c.portalUid){ tabs.push(['clientintel','Client Intel']); }
 
   return `
     <div class="settings-tabs" style="margin-bottom:14px;">
@@ -9067,6 +9380,15 @@ function modalFormHTML(c){
         </div>
         <div id="extraDeliverables_${c.id}" style="font-size:12px; color:var(--slate);">Loading…</div>
         <p style="font-size:10.5px; color:var(--slate); margin-top:8px;">Each item shows up individually, with its own price, in both the CRM and the client's Portal under Billing - itemized, no bundled surcharge.</p>
+      </div>
+      <div style="border:1px solid var(--line); border-radius:9px; padding:12px 14px; margin-bottom:14px;">
+        <div style="font-size:12px; font-weight:700; color:var(--ink); margin-bottom:8px;">Monthly Retainer Hours</div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input id="f_retainerHours" type="number" min="0" step="0.5" placeholder="e.g. 20" style="width:90px;" value="" data-portal-uid="${c.portalUid}">
+          <button type="button" class="btn-small" onclick="saveRetainerHours('${c.id}')">Save</button>
+          <span id="retainerHoursDisplay_${c.id}" style="font-size:11.5px; color:var(--slate);">Loading...</span>
+        </div>
+        <p style="font-size:10.5px; color:var(--slate); margin-top:8px;">Hours included in this client's retainer each month. Used to calculate burn rate on the Client Intel tab.</p>
       </div>
       ` : ''}
       ` : ''}
@@ -9260,6 +9582,12 @@ function modalFormHTML(c){
         <button type="button" class="btn-small" onclick="openLogCallModal('${c.id}')">${iconPhone()} Log a call</button>
       </div>` : ''}
     </div>
+    ${(isEdit && c.portalUid) ? `
+    <div class="contact-tab-panel" data-tab="clientintel" style="display:none;">
+      <div id="ci-wrap-${c.id}">
+        <p style="color:var(--slate); font-size:13px;">Loading client intel...</p>
+      </div>
+    </div>` : ''}
   `;
 }
 function userSelFld(id,label,val){
