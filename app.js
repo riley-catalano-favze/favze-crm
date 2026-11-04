@@ -5048,29 +5048,59 @@ function openNewEsignProposalModal(){
       ${fld('ep_prospect_email','Prospect Email','','email@company.com','email')}
     </div>
     ${fld('ep_title','Proposal Title','','e.g. Social Media Management Proposal')}
-    <div class="field"><label>Proposal Content (HTML supported)</label>
-      <textarea id="ep_body_html" rows="14" placeholder="Write your full proposal here. You can use HTML formatting."
+    <div class="field">
+      <label>Upload Document <span style="font-weight:400;color:var(--slate);">(PDF, Word, or image - shown to client before signing)</span></label>
+      <input type="file" id="ep_doc_file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="margin-bottom:6px;">
+      <div id="ep_doc_status" style="font-size:12px;color:var(--slate);min-height:18px;"></div>
+    </div>
+    <div class="field"><label>Additional Written Content <span style="font-weight:400;color:var(--slate);">(optional, HTML supported)</span></label>
+      <textarea id="ep_body_html" rows="8" placeholder="Add terms, pricing details, scope notes, or any supporting text here."
         style="font-family:monospace; font-size:12px;"></textarea>
     </div>
   `;
   document.getElementById('modalFoot').innerHTML = `
     <button class="btn-ghost" onclick="closeModal()">Cancel</button>
-    <button class="btn-primary" onclick="saveEsignProposal()">Create and copy portal link</button>
+    <button class="btn-primary" id="ep_submit_btn" onclick="saveEsignProposal()">Create and copy portal link</button>
   `;
   document.getElementById('modalBackdrop').classList.add('open');
 }
+
+async function uploadProposalDoc(file){
+  const ext = file.name.split('.').pop().toLowerCase();
+  const filename = `proposals/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const sb = getSupabaseClient();
+  if(!sb) throw new Error('No Supabase client');
+  const { data, error } = await sb.storage.from('proposal-docs').upload(filename, file, { upsert: true, contentType: file.type });
+  if(error) throw error;
+  const { data: urlData } = sb.storage.from('proposal-docs').getPublicUrl(filename);
+  return urlData.publicUrl;
+}
+
 async function saveEsignProposal(){
   const name = document.getElementById('ep_prospect_name').value.trim();
   const email = document.getElementById('ep_prospect_email').value.trim();
   const title = document.getElementById('ep_title').value.trim();
   const body_html = document.getElementById('ep_body_html').value.trim();
+  const fileInput = document.getElementById('ep_doc_file');
+  const file = fileInput && fileInput.files[0];
   if(!name||!email||!title){ showToast('Name, email and title are all required'); return; }
   const sb = getSupabaseClient();
   if(!sb) return;
+  const submitBtn = document.getElementById('ep_submit_btn');
+  const statusEl = document.getElementById('ep_doc_status');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Creating...';
   try{
+    let document_url = null;
+    if(file){
+      if(statusEl) statusEl.textContent = 'Uploading document...';
+      document_url = await uploadProposalDoc(file);
+      if(statusEl) statusEl.textContent = 'Document uploaded.';
+    }
     const { data, error } = await sb.from('proposals').insert({
       prospect_name: name, prospect_email: email,
-      title, body_html, status: 'sent'
+      title, body_html: body_html || null, status: 'sent',
+      document_url
     }).select('id').single();
     if(error) throw error;
     const link = `https://portal.favze.com/portal-proposal.html?id=${data.id}`;
@@ -5078,7 +5108,13 @@ async function saveEsignProposal(){
     closeModal();
     showToast('Proposal created - signing link copied to clipboard');
     loadEsignProposals();
-  }catch(err){ console.error(err); showToast('Could not create proposal'); }
+  }catch(err){
+    console.error(err);
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Create and copy portal link';
+    if(statusEl) statusEl.textContent = '';
+    showToast('Could not create proposal');
+  }
 }
 async function openEsignProposalDetail(id){
   const sb = getSupabaseClient();
