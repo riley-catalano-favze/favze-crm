@@ -111,10 +111,17 @@ function crmContentItemToPortalShape(item){
     id: String(item.id),
     date: item.date || todayISO(),
     type: contentTypeMeta(item.type).label,
+    typeValue: item.type || 'blog',
     title: item.title || contentTypeMeta(item.type).label,
     desc: item.description || '',
     caption: item.caption || '',
     status,
+    visibleToClient: item.visibleToClient === true,
+    // Store portal UIDs (not CRM contact IDs) so the portal can compare against its own CLIENT_ID
+    assignedClients: (item.assignedClients || []).map(cid=>{ const c = DATA.contacts.find(x=>x.id===cid); return c && c.portalUid ? c.portalUid : null; }).filter(Boolean),
+    copywritingStatus: item.copywritingStatus || '',
+    designStatus: item.designStatus || '',
+    pageUrl: item.pageUrl || '',
     project: contact ? contact.name : 'Favze',
     imageUrls: item.imageUrls || [],
     comments: (item.comments||[]).map(c=>{
@@ -126,16 +133,20 @@ function crmContentItemToPortalShape(item){
 async function syncContentItemToPortal(item){
   if(!agencySupabaseSession){ showToast('Connect your agency account in Settings → Integrations to sync with the portal'); return; }
   if(!agencyAccountRequest || !agencyAccountRequest.approved){ showToast('Your agency account is still waiting on approval, see Settings → Integrations'); return; }
-  const contact = item.contactId ? DATA.contacts.find(c=>c.id===item.contactId) : null;
-  if(!contact){ showToast('Link this piece to a contact first, so it knows which client to sync to'); return; }
-  if(!contact.portalUid){ showToast(`${contact.name} isn't linked to an approved Portal account yet — approve them in Settings → Integrations`); return; }
   const client = getSupabaseClient();
   if(!client) return;
+  // Build the set of portal UIDs to sync to: assigned clients take priority over the legacy contactId field
+  const assignedUids = [];
+  const assignedIds = item.assignedClients && item.assignedClients.length ? item.assignedClients : (item.contactId ? [item.contactId] : []);
+  assignedIds.forEach(cid=>{
+    const contact = DATA.contacts.find(c=>c.id===cid);
+    if(contact && contact.portalUid) assignedUids.push(contact.portalUid);
+  });
+  if(!assignedUids.length){ showToast('Assign this item to at least one client with a linked Portal account first'); return; }
+  const shape = crmContentItemToPortalShape(item);
   try{
-    await client.from('content_items').upsert({
-      id: String(item.id), client_id: contact.portalUid,
-      data: crmContentItemToPortalShape(item), updated_at: new Date().toISOString(),
-    });
+    const rows = assignedUids.map(uid=>({ id: String(item.id), client_id: uid, data: shape, updated_at: new Date().toISOString() }));
+    await client.from('content_items').upsert(rows);
   }catch(err){ console.error('Portal sync failed', err); showToast('Portal sync failed, check Settings → Integrations'); }
 }
 // Pulls every client's Approve/Reject decisions and any comments they've left in the portal
@@ -7690,6 +7701,9 @@ const CONTENT_TYPES = [
   {value:'blog', label:'Blog Post', color:'#0A89A3'},
   {value:'social', label:'Social Post', color:'#E3A008'},
   {value:'video', label:'Video', color:'#064187'},
+  {value:'email', label:'Email', color:'#7C3AED'},
+  {value:'website-page', label:'Website Page', color:'#059669'},
+  {value:'other', label:'Other', color:'#64748B'},
 ];
 function contentTypeMeta(v){ return CONTENT_TYPES.find(t=>t.value===v) || CONTENT_TYPES[0]; }
 
@@ -8035,7 +8049,7 @@ function contentFormHTML(item, dateStr){
     </div>
     <div class="field-row">
       <div class="field"><label>Type</label>
-        <select id="ct_type" onchange="document.getElementById('ct_socialSection').style.display = this.value==='social' ? '' : 'none';">
+        <select id="ct_type" onchange="onContentTypeChange(this.value);">
           ${CONTENT_TYPES.map(t=>`<option value="${t.value}" ${item.type===t.value?'selected':''}>${t.label}</option>`).join('')}
         </select>
       </div>
@@ -8043,6 +8057,50 @@ function contentFormHTML(item, dateStr){
     </div>
     <div class="field"><label>Title</label><input id="ct_title" value="${esc(item.title)}" placeholder="e.g. July SEO recap post"></div>
     <div class="field"><label>Description</label><textarea id="ct_description" rows="3" placeholder="What this piece covers">${esc(item.description)}</textarea></div>
+
+    <div id="ct_websiteSection" style="${item.type==='website-page'?'':'display:none;'}">
+      <div class="field-row">
+        <div class="field"><label>Page URL / slug</label><input id="ct_pageUrl" value="${esc(item.pageUrl||'')}" placeholder="e.g. /services/landscaping"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Copywriting</label>
+          <select id="ct_copywritingStatus">
+            ${['','Not Started','In Progress','Done'].map(s=>`<option value="${s}" ${(item.copywritingStatus||'')=== s?'selected':''}>${s||'-- Select --'}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Design</label>
+          <select id="ct_designStatus">
+            ${['','Not Started','In Progress','Done'].map(s=>`<option value="${s}" ${(item.designStatus||'')=== s?'selected':''}>${s||'-- Select --'}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" style="border-top:1px solid var(--line); padding-top:14px; margin-top:4px;">
+      <label style="display:flex; align-items:center; justify-content:space-between;">
+        <span>Client visibility</span>
+        <label style="display:flex; align-items:center; gap:7px; cursor:pointer; font-weight:500; font-size:12.5px;">
+          <input type="checkbox" id="ct_visibleToClient" ${item.visibleToClient?'checked':''} style="width:auto;">
+          <span>Visible in client portal</span>
+        </label>
+      </label>
+      <div style="font-size:11px; color:var(--slate); margin-top:4px;">When on, assigned clients can see this item in their portal. Off keeps it internal.</div>
+    </div>
+
+    <div class="field">
+      <label>Assign to clients</label>
+      <div id="ct_assignedClients" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
+        ${customers.filter(c=>c.portalUid).map(c=>{
+          const on = (item.assignedClients||[]).includes(c.id);
+          return `<label style="display:flex; align-items:center; gap:5px; padding:5px 11px; border-radius:99px; border:1.5px solid ${on?'var(--teal-text)':'var(--line)'}; background:${on?'#e0f7fa':'var(--paper)'}; cursor:pointer; font-size:12px; font-weight:600; color:var(--ink);">
+            <input type="checkbox" class="assigned-client-check" value="${c.id}" ${on?'checked':''} style="width:auto;">
+            ${esc(c.name)}
+          </label>`;
+        }).join('')}
+        ${customers.filter(c=>!c.portalUid).length && !customers.filter(c=>c.portalUid).length ? `<span style="font-size:12px; color:var(--slate);">No clients have an approved portal account yet. Approve them in Settings → Integrations.</span>` : ''}
+        ${customers.filter(c=>c.portalUid).length === 0 && customers.filter(c=>!c.portalUid).length > 0 ? `<span style="font-size:12px; color:var(--slate);">Clients listed below don't have portal accounts yet — approve them in Settings → Integrations first.</span>` : ''}
+      </div>
+    </div>
 
     <div class="field">
       <label>Photos for client review</label>
@@ -8103,6 +8161,10 @@ function contentFormHTML(item, dateStr){
     <div class="field"><label>Video / media link</label><input id="ct_media_plain" value="${esc(item.mediaUrl)}" placeholder="Paste a link to the video or asset"></div>
     ` : ''}
   `;
+}
+function onContentTypeChange(val){
+  document.getElementById('ct_socialSection').style.display = val==='social' ? '' : 'none';
+  document.getElementById('ct_websiteSection').style.display = val==='website-page' ? '' : 'none';
 }
 function onPlatformToggle(){
   const checked = Array.from(document.querySelectorAll('.platform-check')).filter(c=>c.checked).map(c=>c.value);
@@ -8173,6 +8235,11 @@ async function saveContentForm(){
     : document.getElementById('ct_media_plain').value.trim();
   const scheduledTime = isSocial ? document.getElementById('ct_scheduledTime').value : '';
   const accountHandle = isSocial && document.getElementById('ct_accountHandle') ? document.getElementById('ct_accountHandle').value.trim() : '';
+  const visibleToClient = document.getElementById('ct_visibleToClient') ? document.getElementById('ct_visibleToClient').checked : false;
+  const assignedClients = Array.from(document.querySelectorAll('.assigned-client-check')).filter(c=>c.checked).map(c=>c.value);
+  const copywritingStatus = document.getElementById('ct_copywritingStatus') ? document.getElementById('ct_copywritingStatus').value : '';
+  const designStatus = document.getElementById('ct_designStatus') ? document.getElementById('ct_designStatus').value : '';
+  const pageUrl = document.getElementById('ct_pageUrl') ? document.getElementById('ct_pageUrl').value.trim() : '';
   const payload = {
     contactId,
     date: document.getElementById('ct_date').value || todayISO(),
@@ -8181,6 +8248,7 @@ async function saveContentForm(){
     description: document.getElementById('ct_description').value.trim(),
     caption, mediaUrl, platforms, threadMode, threadSegments, scheduledTime, accountHandle,
     imageUrls: [...editingContentImageUrls],
+    visibleToClient, assignedClients, copywritingStatus, designStatus, pageUrl,
   };
   if(editingContentId){
     const existing = DATA.contentCalendar.find(x=>x.id===editingContentId);
