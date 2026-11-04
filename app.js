@@ -11326,7 +11326,7 @@ async function gateSubmitPasswordReset(){
   msg.style.color='#067647'; msg.textContent='Password updated. Signing you in...';
   setTimeout(()=>{ window.history.replaceState(null,'',window.location.pathname); applyAuthGate(); },1200);
 }
-(function handlePasswordReset(){
+const _isRecoveryLink = (function handlePasswordReset(){
   // Support both hash-based (#type=recovery) and query-param-based (?code=...) reset links.
   // Supabase PKCE flow uses query params; older implicit flow uses hash fragments.
   const hash = window.location.hash;
@@ -11334,14 +11334,18 @@ async function gateSubmitPasswordReset(){
   const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
   const searchParams = new URLSearchParams(search);
   const isRecovery = hashParams.get('type') === 'recovery' || searchParams.get('type') === 'recovery' || searchParams.has('code');
-  if(!isRecovery) return;
+  if(!isRecovery) return false;
   const client = getSupabaseClient();
-  if(!client) return;
+  if(!client) return false;
+  // Show a "loading" state immediately so renderGate('checking') is blocked
+  const el = ensureGateEl();
+  el.style.display = 'flex';
+  el.innerHTML = gateShell('<p style="font-size:14px; color:#04305f; text-align:center; margin:20px 0;">Loading reset form...</p>');
   client.auth.onAuthStateChange((event) => {
     if(event === 'PASSWORD_RECOVERY'){
-      const el = ensureGateEl();
-      el.style.display = 'flex';
-      el.innerHTML = gateShell(`
+      const el2 = ensureGateEl();
+      el2.style.display = 'flex';
+      el2.innerHTML = gateShell(`
         <p style="font-size:14px; font-weight:700; color:#04305f; margin:10px 0 8px;">Set a new password</p>
         <p style="font-size:13px; color:#5b6b80; margin-bottom:16px;">Choose a strong password with at least 12 characters.</p>
         <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">New Password</label><input id="reset_pw" type="password" autocomplete="new-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" onkeydown="if(event.key==='Enter')gateSubmitPasswordReset()" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
@@ -11349,9 +11353,10 @@ async function gateSubmitPasswordReset(){
         <button id="reset_btn" type="button" onclick="gateSubmitPasswordReset()" style="width:100%; padding:12px; border:none; border-radius:9px; background:#04305f; color:#fff; font-weight:700; font-size:14px; cursor:pointer;">Set Password</button>`);
     }
   });
+  return true;
 })();
 
-renderGate('checking');
+if(!_isRecoveryLink) renderGate('checking');
 
 // Sign Out button at the bottom of the sidebar
 (function addSideSignOut(){
