@@ -806,6 +806,10 @@ async function loadData(){
     if(t.escalated===undefined){ t.escalated = false; migrated = true; }
   });
   if(!DATA.tagDefinitions){ DATA.tagDefinitions = []; migrated = true; }
+  if(DATA.settings.brevoConfigured===undefined){ DATA.settings.brevoConfigured = false; migrated = true; }
+  if(DATA.settings.brevoFromEmail===undefined){ DATA.settings.brevoFromEmail = 'hello@favze.com'; migrated = true; }
+  if(DATA.settings.brevoFromName===undefined){ DATA.settings.brevoFromName = 'Favze'; migrated = true; }
+  if(DATA.settings.brevoApiKey===undefined){ DATA.settings.brevoApiKey = ''; migrated = true; }
   if(!DATA.emailLists){
     DATA.emailLists = [
       {id: uid(), name:'Favze Insider', description:'Stats and news newsletter subscribers.'},
@@ -10504,17 +10508,26 @@ function settingsIntegrationsHTML(){
     <div style="border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:16px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <div style="font-size:15px; font-weight:700; color:var(--ink);">Brevo (Email Marketing sender)</div>
-        <span class="badge ${DATA.settings.emailSendEndpointUrl?'customer':'prospect'}">${DATA.settings.emailSendEndpointUrl?'Endpoint configured':'Not configured'}</span>
+        <span class="badge ${DATA.settings.brevoConfigured?'customer':'prospect'}">${DATA.settings.brevoConfigured?'API key saved':'Not configured'}</span>
       </div>
-      <div style="background:var(--amber-soft); border:1px solid var(--amber); border-radius:9px; padding:12px 14px; margin-bottom:14px; font-size:12px; color:var(--amber-text); line-height:1.6;">
-        <b>Brevo's API can't be called safely straight from this browser.</b> Unlike Outlook, Brevo has no secure sign-in flow built for browser apps, only a permanent API key. Putting that key in this page's code would let anyone who views the page source read it and send email as you. It needs one small piece of real backend: a tiny function (a Cloudflare Worker, Vercel function, or similar, ~20 lines of code) that holds your Brevo key privately and does nothing but "send this one email." Free tier on any of those is plenty for your volume.
+      <p style="font-size:12px; color:var(--slate); margin-bottom:12px; line-height:1.6;">
+        Email sends go through a private Supabase Edge Function that holds your Brevo API key securely. The key never touches this page's code.
+        To activate, paste your Brevo API key below and save it. You can find your key in Brevo under <b>Account &rarr; SMTP &amp; API &rarr; API Keys</b>.
+      </p>
+      <div class="field">
+        <label>Brevo API Key</label>
+        <input id="brevo_api_key" type="password" placeholder="${DATA.settings.brevoConfigured ? 'Key saved - paste a new one to replace it' : 'xkeysib-...'}">
       </div>
       <div class="field">
-        <label>Send Endpoint URL</label>
-        <input id="email_send_endpoint" value="${esc(DATA.settings.emailSendEndpointUrl||'')}" placeholder="https://your-proxy.example.workers.dev/send">
+        <label>From email address</label>
+        <input id="brevo_from_email" value="${esc(DATA.settings.brevoFromEmail||'hello@favze.com')}" placeholder="hello@favze.com">
       </div>
-      <button class="btn-primary" onclick="saveEmailSendEndpoint()">Save Endpoint</button>
-      <p style="font-size:11px; color:var(--slate); margin-top:10px;">Once this is set, Campaigns and Automations will POST each email's <span class="mono">to / subject / html</span> to this URL instead of just logging it. Everything else, templates, lists, subscribers, campaign logic, stays owned by this CRM. Swapping Brevo for another provider later is just changing what that endpoint does internally, this page never has to change.</p>
+      <div class="field">
+        <label>From name</label>
+        <input id="brevo_from_name" value="${esc(DATA.settings.brevoFromName||'Favze')}" placeholder="Favze">
+      </div>
+      <button class="btn-primary" onclick="saveBrevoSettings()">Save</button>
+      <p style="font-size:11px; color:var(--slate); margin-top:10px;">Once saved, Campaigns and Automations send real email through Brevo. Everything else, templates, lists, subscribers, campaign logic, stays owned by this CRM.</p>
     </div>
 
     <div style="border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:16px;">
@@ -10653,7 +10666,11 @@ async function ensureAgencyAccountRequest(session){
     if(existing) return existing;
     const { data: inserted, error: insErr } = await client.from('account_requests').insert({ user_id: session.user.id, email: session.user.email, role:'agency' }).select().maybeSingle();
     if(insErr){ console.error(insErr); return null; }
-    return inserted;
+    // Auto-approve if this is the very first agency account (founder setup flow)
+    await client.rpc('auto_approve_if_first_agency');
+    // Re-fetch to get the updated approved status
+    const { data: refreshed } = await client.from('account_requests').select('*').eq('user_id', session.user.id).maybeSingle();
+    return refreshed || inserted;
   }catch(err){ console.error(err); return null; }
 }
 // Fetches every account request this session can see -- both pending and already-approved.
@@ -10831,30 +10848,78 @@ async function saveFormSubmissionsEndpoint(){
   refreshSettingsBody();
   showToast(url ? 'Relay endpoint saved' : 'Relay endpoint cleared');
 }
-async function saveEmailSendEndpoint(){
-  const url = document.getElementById('email_send_endpoint').value.trim();
-  DATA.settings.emailSendEndpointUrl = url || null;
+async function saveBrevoSettings(){
+  const key = document.getElementById('brevo_api_key').value.trim();
+  const fromEmail = document.getElementById('brevo_from_email').value.trim();
+  const fromName = document.getElementById('brevo_from_name').value.trim();
+  if(!key && !DATA.settings.brevoConfigured){ showToast('Paste your Brevo API key first'); return; }
+  DATA.settings.brevoFromEmail = fromEmail || 'hello@favze.com';
+  DATA.settings.brevoFromName = fromName || 'Favze';
+  if(key){
+    const sb = getSupabaseClient();
+    if(!sb){ showToast('Connect your agency account first'); return; }
+    const { data: { session } } = await sb.auth.getSession().catch(()=>({ data:{ session:null } }));
+    if(!session){ showToast('Sign in to your agency account first'); return; }
+    try{
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + session.access_token,
+          'x-brevo-key': key,
+        },
+        body: JSON.stringify({ _setup: true }),
+      });
+      const result = await res.json().catch(()=>({}));
+      if(!res.ok){
+        showToast('Brevo rejected that key: ' + (result.error || res.status));
+        return;
+      }
+      DATA.settings.brevoApiKey = key;
+      DATA.settings.brevoConfigured = true;
+    }catch(e){
+      console.error('Brevo setup ping failed', e);
+      showToast('Could not reach Brevo, check your connection');
+      return;
+    }
+  }
   await saveData();
   refreshSettingsBody();
-  showToast(url ? 'Send endpoint saved' : 'Send endpoint cleared');
+  showToast(key ? 'Brevo API key verified and saved' : 'Brevo settings saved');
 }
 /* Central send function — every real outbound email in the CRM should call this instead of
    talking to a provider directly, so the provider can change without touching the rest of the app. */
 async function sendViaEmailProvider(to, subject, bodyHtml){
-  const endpoint = DATA.settings.emailSendEndpointUrl;
-  if(endpoint){
-    try{
-      const res = await fetch(endpoint, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({ to, subject, html: bodyHtml }),
-      });
-      if(!res.ok) throw new Error('Send endpoint returned ' + res.status);
-      return { ok:true, provider:'endpoint' };
-    }catch(err){
-      console.error('sendViaEmailProvider endpoint failed', err);
-      showToast('Send endpoint failed, check the URL in Settings → Integrations');
-      return { ok:false, provider:'endpoint' };
+  if(DATA.settings.brevoConfigured && DATA.settings.brevoApiKey){
+    const sb = getSupabaseClient();
+    if(sb){
+      try{
+        const { data: { session } } = await sb.auth.getSession();
+        if(session){
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + session.access_token,
+              'x-brevo-key': DATA.settings.brevoApiKey,
+            },
+            body: JSON.stringify({
+              to, subject, html: bodyHtml,
+              from: DATA.settings.brevoFromEmail || 'hello@favze.com',
+              fromName: DATA.settings.brevoFromName || 'Favze',
+            }),
+          });
+          if(res.ok) return { ok:true, provider:'brevo' };
+          const err = await res.json().catch(()=>({}));
+          console.error('Brevo send failed', err);
+          showToast('Brevo send failed: ' + (err.error || res.status));
+          return { ok:false, provider:'brevo' };
+        }
+      }catch(err){
+        console.error('sendViaEmailProvider brevo error', err);
+        showToast('Could not reach Brevo, check your connection');
+        return { ok:false, provider:'brevo' };
+      }
     }
   }
   if(outlookAccount){
