@@ -8446,7 +8446,7 @@ async function notifyClientNewContent(contactId, contentTitle, contentType){
     await fetch(SUPABASE_URL+'/functions/v1/client-content-notify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+SUPABASE_KEY },
-      body: JSON.stringify({ clientName, clientEmail, contentTitle, contentType, portalUrl: 'https://favze.com/portal-content.html' })
+      body: JSON.stringify({ clientName, clientEmail, contentTitle, contentType, portalUrl: 'https://portal.favze.com/portal-content.html' })
     });
   }catch(e){ console.warn('Client content notify failed (non-fatal):', e); }
 }
