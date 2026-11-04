@@ -275,7 +275,7 @@ async function pullRemote(){
         return;
       }
       // Remote is newer AND local is dirty — conflict
-      setSyncStatus('Conflict — see banner', 'conflict');
+      setSyncStatus('Conflict - see banner', 'conflict');
       showConflictBanner(remote);
       return;
     }
@@ -406,7 +406,7 @@ function uid(){ return 'c_' + Math.random().toString(36).slice(2,9); }
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 function daysBetween(a,b){ return Math.round((new Date(b) - new Date(a)) / 86400000); }
 function fmtDate(iso){
-  if(!iso) return '—';
+  if(!iso) return '-';
   const d = new Date(iso+'T00:00:00');
   const mm = String(d.getMonth()+1).padStart(2,'0');
   const dd = String(d.getDate()).padStart(2,'0');
@@ -1384,11 +1384,11 @@ function openLeadScoreBreakdown(id){
   const c = DATA.contacts.find(x=>x.id===id);
   if(!c) return;
   const s = computeLeadScore(c);
-  document.getElementById('modalTitle').textContent = `${c.name} — Priority Score`;
+  document.getElementById('modalTitle').textContent = `${c.name} - Priority Score`;
   document.getElementById('modalBody').innerHTML = `
     <div style="text-align:center; margin-bottom:18px;">
       <div class="mono" style="font-size:40px; font-weight:700; color:var(--navy-deep);">${s.total}</div>
-      <div style="font-size:12px; color:var(--slate);">out of 100 — pure math from data already on this contact, nothing modeled or guessed</div>
+      <div style="font-size:12px; color:var(--slate);">out of 100 - pure math from data already on this contact, nothing modeled or guessed</div>
     </div>
     ${s.breakdown.map(b=>`
       <div style="margin-bottom:12px;">
@@ -1631,7 +1631,7 @@ function renderDashboard(k){
           ${newest.length ? newest.map(x=>`
             <tr onclick="openEditModal('${x.id}')">
               <td><div class="lead-name">${esc(x.name)}</div><div class="lead-sub">${esc(x.company||'')}</div></td>
-              <td class="src">${esc(x.source||'—')}</td>
+              <td class="src">${esc(x.source||'-')}</td>
               <td><span class="badge ${badgeClass(x.type)}">${typeLabel(x.type)}</span></td>
               <td class="mono">${fmtDate(x.dateAdded)}</td>
             </tr>`).join('') : `<tr class="empty-row"><td colspan="4">No contacts yet. Add your first one.</td></tr>`}
@@ -1807,10 +1807,10 @@ function renderListView(type, k){
                 ${(x.tags||[]).length ? `<div style="display:flex; gap:4px; margin-top:4px; flex-wrap:wrap;">${x.tags.map(tid=>{ const t=DATA.tagDefinitions.find(td=>td.id===tid); return t ? `<span style="font-size:9.5px; font-weight:700; padding:1px 7px; border-radius:99px; background:${t.color}22; color:${accessibleTextShade(t.color, document.documentElement.dataset.theme==='dark')};">${esc(t.name)}</span>` : ''; }).join('')}</div>` : ''}
               </td>
               ${scoreSortable ? `<td onclick="event.stopPropagation(); openLeadScoreBreakdown('${x.id}');"><span class="badge ${scoreBadgeClass(computeLeadScore(x).total)}" style="cursor:pointer;">${computeLeadScore(x).total}</span></td>` : ''}
-              <td class="src" onclick="openEditModal('${x.id}')">${esc(x.source||'—')}</td>
-              <td onclick="openEditModal('${x.id}')">${esc(x.stage||'—')}</td>
+              <td class="src" onclick="openEditModal('${x.id}')">${esc(x.source||'-')}</td>
+              <td onclick="openEditModal('${x.id}')">${esc(x.stage||'-')}</td>
               <td class="mono" onclick="openEditModal('${x.id}')">${fmtMoney(x.dealValue)}</td>
-              <td onclick="openEditModal('${x.id}')">${x.followUpDate ? (x.followUpDone ? '<span class="badge customer">Done</span>' : (x.followUpDate<todayISO() ? '<span class="badge hot">Overdue</span>' : fmtDate(x.followUpDate))) : '—'}</td>
+              <td onclick="openEditModal('${x.id}')">${x.followUpDate ? (x.followUpDone ? '<span class="badge customer">Done</span>' : (x.followUpDate<todayISO() ? '<span class="badge hot">Overdue</span>' : fmtDate(x.followUpDate))) : '-'}</td>
               <td class="mono" onclick="openEditModal('${x.id}')">${fmtDate(x.dateAdded)}</td>
             </tr>`).join('') : `<tr class="empty-row"><td colspan="${scoreSortable?8:7}">No ${titleMap[type].toLowerCase()} yet.</td></tr>`}
         </tbody>
@@ -1846,8 +1846,8 @@ function renderAllContactsView(){
             <tr onclick="openEditModal('${x.id}')">
               <td><div class="lead-name">${esc(x.name)}</div><div class="lead-sub">${esc(x.company||'')}</div></td>
               <td><span class="badge ${badgeClass(x.type)}">${typeLabel(x.type)}</span></td>
-              <td class="src">${esc(x.source||'—')}</td>
-              <td>${esc(x.stage||'—')}</td>
+              <td class="src">${esc(x.source||'-')}</td>
+              <td>${esc(x.stage||'-')}</td>
               <td class="mono">${fmtMoney(x.dealValue)}</td>
               <td class="mono">${fmtDate(x.dateAdded)}</td>
             </tr>`).join('') : `<tr class="empty-row"><td colspan="6">No contacts yet.</td></tr>`}
@@ -1894,7 +1894,7 @@ function renderProjectsView(){
           ${rows.length ? rows.map(x=>`
             <tr onclick="openEditProject('${x.id}')">
               <td><div class="lead-name">${esc(x.name)}</div><div class="lead-sub">${esc(x.description||'')}</div></td>
-              <td class="src">${esc(x.client||'—')}</td>
+              <td class="src">${esc(x.client||'-')}</td>
               <td><span class="badge ${x.status==='Complete'?'customer':(x.status==='In Progress'?'lead':'prospect')}">${esc(x.status)}</span></td>
               <td class="mono">${fmtDate(x.dueDate)}</td>
               <td class="mono">${fmtDate(x.dateAdded)}</td>
@@ -1923,8 +1923,8 @@ function renderTasksView(){
             <tr>
               <td style="width:40px;" onclick="event.stopPropagation();"><div class="fu-check ${x.done?'done':(isOverdue?'overdue':'')}" onclick="toggleDone(event,'task','${x.id}')">${x.done?iconCheck():''}</div></td>
               <td onclick="openEditTask('${x.id}')"><div class="lead-name" style="${x.done?'text-decoration:line-through; color:var(--slate);':''}">${x.recurrence?'↻ ':''}${esc(x.title)}</div></td>
-              <td class="src" onclick="openEditTask('${x.id}')">${esc(x.project||'—')}</td>
-              <td onclick="openEditTask('${x.id}')">${esc(x.priority||'—')}</td>
+              <td class="src" onclick="openEditTask('${x.id}')">${esc(x.project||'-')}</td>
+              <td onclick="openEditTask('${x.id}')">${esc(x.priority||'-')}</td>
               <td class="mono" onclick="openEditTask('${x.id}')">${x.done?'Done':(isOverdue?'Overdue':fmtDate(x.dueDate))}</td>
             </tr>`;}).join('') : `<tr class="empty-row"><td colspan="5">No tasks yet.</td></tr>`}
         </tbody>
@@ -1989,7 +1989,7 @@ async function toggleDone(e, kind, id){
   }
   await saveData();
   render();
-  showToast(item.done ? (recreated ? 'Marked done — next occurrence created' : 'Marked done') : 'Reopened');
+  showToast(item.done ? (recreated ? 'Marked done - next occurrence created' : 'Marked done') : 'Reopened');
 }
 
 /* ===================== AUTOMATION ENGINE (no AI — rule matching only) ===================== */
@@ -2220,11 +2220,11 @@ document.addEventListener('click', (e)=>{
 });
 async function sendDigestNow(){
   if(!DATA.digestQueue.length){ showToast('Nothing queued for the digest'); return; }
-  const lines = DATA.digestQueue.map(q=> `- ${eventLabel(q.eventKey)}${q.contactName?' — '+q.contactName:''}: ${q.message}`).join('\n');
+  const lines = DATA.digestQueue.map(q=> `- ${eventLabel(q.eventKey)}${q.contactName?' - '+q.contactName:''}: ${q.message}`).join('\n');
   DATA.emailLog.unshift({
     id: uid(), workflowId:null, workflowName: 'Daily Digest',
     contactId:null, contactName:'System',
-    subject: `Favze CRM Daily Digest — ${DATA.digestQueue.length} update(s)`,
+    subject: `Favze CRM Daily Digest - ${DATA.digestQueue.length} update(s)`,
     body: lines, triggeredAt: new Date().toISOString()
   });
   const count = DATA.digestQueue.length;
@@ -2264,8 +2264,8 @@ function evaluateWorkflowsForDeal(deal, event){
 }
 /* ===================== DEFAULT CONSULTATION-STAGE EMAIL SEQUENCE (seeded once, fully editable after) ===================== */
 const DEFAULT_STAGE_SEQUENCE = [
-  { stage:'New Inquiry', name:'New Inquiry — Fast Acknowledgment',
-    subject:"Got your info, {{name}} — here's what happens next",
+  { stage:'New Inquiry', name:'New Inquiry - Fast Acknowledgment',
+    subject:"Got your info, {{name}} - here's what happens next",
     body:`Hi {{name}},
 
 Thanks for reaching out to Favze. I wanted to get back to you fast, because when you're evaluating marketing partners, momentum matters.
@@ -2276,8 +2276,8 @@ Keep an eye out for a scheduling link, or feel free to grab a time that works fo
 
 Talk soon,
 The Favze Team` },
-  { stage:'Consultation Scheduled', name:'Consultation Scheduled — Confirmation & Prep',
-    subject:"You're booked — quick prep for our call",
+  { stage:'Consultation Scheduled', name:'Consultation Scheduled - Confirmation & Prep',
+    subject:"You're booked - quick prep for our call",
     body:`Hi {{name}},
 
 Looking forward to our conversation. To make the most of our time together, it helps if you come in with:
@@ -2290,8 +2290,8 @@ This isn't a sales pitch on our end, it's a real conversation about whether we'r
 
 See you soon,
 The Favze Team` },
-  { stage:'Consultation No-Show', name:'Consultation No-Show — Warm Re-Engagement',
-    subject:"Totally get it, {{name}} — let's find a better time",
+  { stage:'Consultation No-Show', name:'Consultation No-Show - Warm Re-Engagement',
+    subject:"Totally get it, {{name}} - let's find a better time",
     body:`Hi {{name}},
 
 Life happens, no worries at all about missing our call. I didn't want to just let it go without checking in.
@@ -2302,8 +2302,8 @@ If timing isn't right anymore, that's totally fine too, just let me know and I'l
 
 Best,
 The Favze Team` },
-  { stage:'Consultation Completed', name:'Consultation Completed — Recap & Next Step',
-    subject:"Great talking with you, {{name}} — here's a quick recap",
+  { stage:'Consultation Completed', name:'Consultation Completed - Recap & Next Step',
+    subject:"Great talking with you, {{name}} - here's a quick recap",
     body:`Hi {{name}},
 
 Really enjoyed our conversation today. Based on what you shared, here's what I'm hearing as the priority: getting {{#if company}}{{company}}{{#else}}your business{{/if}} more consistent, qualified leads without you having to think about marketing every day.
@@ -2314,7 +2314,7 @@ In the meantime, if anything else comes to mind, just reply here.
 
 Talk soon,
 The Favze Team` },
-  { stage:'Proposal Sent', name:'Proposal Sent — Framing & Next Step',
+  { stage:'Proposal Sent', name:'Proposal Sent - Framing & Next Step',
     subject:"Your proposal is ready, {{name}}",
     body:`Hi {{name}},
 
@@ -2329,7 +2329,7 @@ Let me know what questions come up. I'd rather over-explain than have you guessi
 
 Best,
 The Favze Team` },
-  { stage:'Negotiation', name:'Negotiation — Address Objections Directly',
+  { stage:'Negotiation', name:'Negotiation - Address Objections Directly',
     subject:"Let's make this work, {{name}}",
     body:`Hi {{name}},
 
@@ -2341,7 +2341,7 @@ What's the biggest thing still on your mind?
 
 Best,
 The Favze Team` },
-  { stage:'Won', name:'Deal Won — Warm Welcome',
+  { stage:'Won', name:'Deal Won - Warm Welcome',
     subject:"Welcome to Favze, {{name}}",
     body:`Hi {{name}},
 
@@ -2353,7 +2353,7 @@ Thanks for trusting us with this, we don't take it lightly.
 
 Talk soon,
 The Favze Team` },
-  { stage:'Lost', name:'Deal Lost — Professional Close',
+  { stage:'Lost', name:'Deal Lost - Professional Close',
     subject:"No hard feelings, {{name}}",
     body:`Hi {{name}},
 
@@ -2409,7 +2409,7 @@ function checkCustomDateReminders(){
       if(c._customDateReminded[markerKey]) return; // already created, don't duplicate
       DATA.reminders.push({
         id: uid(), dateAdded: today, done:false, contactId: c.id,
-        text: `${c.name} — ${f.name}${leadDays>0?` in ${leadDays} day${leadDays===1?'':'s'}`:' is today'} (${fmtDate(dateVal)})`,
+        text: `${c.name} - ${f.name}${leadDays>0?` in ${leadDays} day${leadDays===1?'':'s'}`:' is today'} (${fmtDate(dateVal)})`,
         dueDate: today,
       });
       c._customDateReminded[markerKey] = true;
@@ -2434,7 +2434,7 @@ function checkRenewalReminders(){
     if(co._renewalReminded[co.contract.contractEnd]) return;
     DATA.reminders.push({
       id: uid(), dateAdded: today, done:false, contactId: null,
-      text: `${co.name}'s contract renews in 60 days (${fmtDate(co.contract.contractEnd)}) — confirm renewal`,
+      text: `${co.name}'s contract renews in 60 days (${fmtDate(co.contract.contractEnd)}) - confirm renewal`,
       dueDate: today,
     });
     co._renewalReminded[co.contract.contractEnd] = true;
@@ -2561,8 +2561,8 @@ function renderCampaignsView(){
             return `
             <tr onclick="openCampaignDetail('${cm.id}')">
               <td><div class="lead-name">${esc(cm.name)}</div>${cm.goal?`<div class="lead-sub">${esc(cm.goal)}</div>`:''}</td>
-              <td class="src">${(cm.channels||[]).length ? (cm.channels||[]).slice(0,3).map(ch=>esc(ch)).join(', ') + ((cm.channels||[]).length>3?` +${cm.channels.length-3}`:'') : '—'}</td>
-              <td class="src">${co ? esc(co.name) : (proj ? esc(proj.name) : '—')}</td>
+              <td class="src">${(cm.channels||[]).length ? (cm.channels||[]).slice(0,3).map(ch=>esc(ch)).join(', ') + ((cm.channels||[]).length>3?` +${cm.channels.length-3}`:'') : '-'}</td>
+              <td class="src">${co ? esc(co.name) : (proj ? esc(proj.name) : '-')}</td>
               <td>
                 <span class="badge ${cm.status==='sent'?'customer':(cm.status==='scheduled'?'lead':'prospect')}">${cm.status==='sent'?'Sent':(cm.status==='scheduled'?'Scheduled':'Draft')}</span>
                 ${cm.status==='scheduled' && cm.scheduledFor ? `<div style="font-size:10.5px; color:var(--slate); margin-top:3px;">${new Date(cm.scheduledFor).toLocaleString('en-US')}</div>` : ''}
@@ -2600,10 +2600,10 @@ function openCampaignDetail(id){
     document.getElementById('modalTitle').textContent = cm.name;
     document.getElementById('modalBody').innerHTML = `
       ${cm.goal ? `<div class="field"><label>Goal</label><input value="${esc(cm.goal)}" readonly></div>` : ''}
-      <div class="field"><label>Channels</label><input value="${esc((cm.channels||[]).join(', ')||'—')}" readonly></div>
+      <div class="field"><label>Channels</label><input value="${esc((cm.channels||[]).join(', ')||'-')}" readonly></div>
       <div class="field-row">
-        <div class="field"><label>Linked to</label><input value="${co?esc(co.name):(proj?esc(proj.name):'—')}" readonly></div>
-        <div class="field"><label>Dates</label><input value="${cm.startDate?fmtDate(cm.startDate):'—'}${cm.endDate?' – '+fmtDate(cm.endDate):''}" readonly></div>
+        <div class="field"><label>Linked to</label><input value="${co?esc(co.name):(proj?esc(proj.name):'-')}" readonly></div>
+        <div class="field"><label>Dates</label><input value="${cm.startDate?fmtDate(cm.startDate):'-'}${cm.endDate?' – '+fmtDate(cm.endDate):''}" readonly></div>
       </div>
       <div class="field-row">
         <div class="field"><label>Audience</label><input value="${esc(audienceLabel(cm.audienceType))}" readonly></div>
@@ -2612,7 +2612,7 @@ function openCampaignDetail(id){
       <div class="field"><label>Subject</label><input value="${esc(cm.subject)}" readonly></div>
       ${cm.abResults ? `<div class="field"><label>A/B Split</label><input value="Subject A → ${cm.abResults.countA} · Subject B → ${cm.abResults.countB}" readonly></div>` : ''}
       <div class="field"><label>Body</label><textarea rows="6" readonly>${esc(cm.body)}</textarea></div>
-      <div class="field"><label>Sent</label><input value="${cm.sentAt ? new Date(cm.sentAt).toLocaleString('en-US') : '—'}" readonly></div>
+      <div class="field"><label>Sent</label><input value="${cm.sentAt ? new Date(cm.sentAt).toLocaleString('en-US') : '-'}" readonly></div>
     `;
     document.getElementById('modalFoot').innerHTML = `
       <button class="btn-danger" onclick="deleteCampaign('${id}')">Delete</button>
@@ -2636,7 +2636,7 @@ function campaignFormHTML(cm){
   const companies = [...DATA.companies].sort((a,b)=>a.name.localeCompare(b.name));
   const emailOn = (cm.channels||[]).includes('Email Marketing');
   return `
-    <div class="field"><label>Campaign name</label><input id="cm_name" value="${esc(cm.name)}" placeholder="e.g. Q3 Local SEO Push — Elkhart County"></div>
+    <div class="field"><label>Campaign name</label><input id="cm_name" value="${esc(cm.name)}" placeholder="e.g. Q3 Local SEO Push - Elkhart County"></div>
     <div class="field"><label>Goal (optional)</label><input id="cm_goal" value="${esc(cm.goal)}" placeholder="e.g. 20 new qualified leads by end of quarter"></div>
     <div class="field">
       <label>Channels</label>
@@ -2812,7 +2812,7 @@ async function sendCampaign(id){
   cm.abResults = cm.subjectB ? { countA, countB } : null;
   await notifyEvent('campaign_sent', `"${cm.name}" sent to ${recipients.length} contact(s)`, null);
   await saveData(); closeModal(); render();
-  showToast(cm.subjectB ? `Sent — ${countA} got Subject A, ${countB} got Subject B` : `Campaign sent to ${recipients.length} contact(s)`);
+  showToast(cm.subjectB ? `Sent - ${countA} got Subject A, ${countB} got Subject B` : `Campaign sent to ${recipients.length} contact(s)`);
 }
 async function scheduleCampaign(id){
   let cm = DATA.campaigns.find(x=>x.id===id);
@@ -2833,7 +2833,7 @@ async function scheduleCampaign(id){
   cm.scheduledFor = scheduledFor;
   cm._scheduleReminded = false;
   await saveData(); closeModal(); render();
-  showToast("Campaign scheduled — you'll get a reminder when it's time to send");
+  showToast("Campaign scheduled - you'll get a reminder when it's time to send");
 }
 function checkScheduledCampaigns(){
   let changed = false;
@@ -2874,7 +2874,7 @@ function renderOptOutsSection(){
             ${rows.length ? rows.map(x=>`
               <tr onclick="openEditModal('${x.id}')">
                 <td><div class="lead-name">${esc(x.name)}</div><div class="lead-sub">${esc(x.company||'')}</div></td>
-                <td class="src">${esc(x.email||'—')}</td>
+                <td class="src">${esc(x.email||'-')}</td>
                 <td><span class="badge ${badgeClass(x.type)}">${typeLabel(x.type)}</span></td>
                 <td class="mono">${fmtDate(x.dateAdded)}</td>
                 <td onclick="event.stopPropagation();"><button class="btn-small" onclick="resubscribeContact('${x.id}')">Resubscribe</button></td>
@@ -2918,7 +2918,7 @@ function renderTemplatesListSection(){
           ${rows.length ? rows.map(t=>`
             <tr onclick="openEditTemplate('${t.id}')">
               <td><div class="lead-name">${esc(t.name)}</div></td>
-              <td class="src">${esc(t.subject||'—')}</td>
+              <td class="src">${esc(t.subject||'-')}</td>
               <td><span class="badge ${t.isHtml?'lead':'customer'}">${t.isHtml?'HTML':'Plain / merge text'}</span></td>
               <td class="mono">${fmtDate(t.dateAdded)}</td>
             </tr>`).join('') : `<tr class="empty-row"><td colspan="4">No templates yet. Import an HTML email or start from scratch.</td></tr>`}
@@ -3057,7 +3057,7 @@ function renderEmailLogView(){
   const rows = [...DATA.emailLog];
   return `
     <div class="page-head">
-      <div><h1>Email Log</h1><p>Every email a workflow has triggered. This is a simulated send log — connect a real email provider to actually deliver these.</p></div>
+      <div><h1>Email Log</h1><p>Every email a workflow has triggered. This is a simulated send log - connect a real email provider to actually deliver these.</p></div>
       <div class="date-pill">${rows.length} triggered</div>
     </div>
     <div class="panel">
@@ -3502,7 +3502,7 @@ function setSelectedRole(id){ selectedRoleId = id; render(); }
 function renderCandidatesView(){
   return `
     <div class="page-head">
-      <div><h1>Candidates</h1><p>Free, local resume screening — no AI API calls, nothing leaves this browser. Negation detection, recency weighting, seniority matching, synonym expansion, and keyword-stuffing flags, all computed client-side.</p></div>
+      <div><h1>Candidates</h1><p>Free, local resume screening - no AI API calls, nothing leaves this browser. Negation detection, recency weighting, seniority matching, synonym expansion, and keyword-stuffing flags, all computed client-side.</p></div>
       <div class="date-pill">${DATA.candidates.length} candidate${DATA.candidates.length===1?'':'s'} scored</div>
     </div>
     <div class="feed-toggle">
@@ -3524,7 +3524,7 @@ function renderOpenRolesList(){
             return `
             <tr onclick="openEditRole('${r.id}')">
               <td><div class="lead-name">${esc(r.title)}</div></td>
-              <td class="src">${(r.requiredSkills||[]).length ? esc(r.requiredSkills.join(', ')) : '(none detected — add more to the job description)'}</td>
+              <td class="src">${(r.requiredSkills||[]).length ? esc(r.requiredSkills.join(', ')) : '(none detected - add more to the job description)'}</td>
               <td class="src">${esc(seniorityRankLabel(r.requiredRank))}</td>
               <td class="mono">${count}</td>
               <td onclick="event.stopPropagation();"><button class="btn-small" onclick="deleteOpenRole('${r.id}')">Delete</button></td>
@@ -3578,8 +3578,8 @@ function openCandidateDetail(id){
     <div class="field"><label>Matched Skills</label><textarea rows="2" readonly>${esc(c.matchedSkills.join(', ')||'(none)')}</textarea></div>
     <div class="field"><label>Missing Skills</label><textarea rows="2" readonly>${esc(c.missingSkills.join(', ')||'(none)')}</textarea></div>
     ${c.negatedSkills.length ? `<div class="field"><label>Explicitly NOT held (negated in resume)</label><textarea rows="2" readonly>${esc(c.negatedSkills.join(', '))}</textarea></div>` : ''}
-    ${c.stuffingFlag ? `<p style="font-size:12px; color:var(--red-text); font-weight:700;">⚠️ Keyword stuffing flagged — a term repeats unnaturally often. Score kept, worth a human look.</p>` : ''}
-    ${c.seniorityGapFlag ? `<p style="font-size:12px; color:var(--amber-text); font-weight:700;">⚠️ Seniority gap — matching skills mostly come from a level below what this role asks for.</p>` : ''}
+    ${c.stuffingFlag ? `<p style="font-size:12px; color:var(--red-text); font-weight:700;">⚠️ Keyword stuffing flagged - a term repeats unnaturally often. Score kept, worth a human look.</p>` : ''}
+    ${c.seniorityGapFlag ? `<p style="font-size:12px; color:var(--amber-text); font-weight:700;">⚠️ Seniority gap - matching skills mostly come from a level below what this role asks for.</p>` : ''}
   `;
   document.getElementById('modalFoot').innerHTML = `<button class="btn-danger" onclick="deleteCandidate('${id}')">Delete</button><button class="btn-ghost" onclick="closeModal()">Close</button>`;
   document.getElementById('modalBackdrop').classList.add('open');
@@ -3718,7 +3718,7 @@ function renderTeamDirectory(){
     const cDays = daysUntilAnnual(co.contract.clientSince);
     if(cDays!==null){
       const yrs = yearsSince(co.contract.clientSince)+1;
-      celebrations.push({name:co.name, avatar:null, type:'Client Anniversary', days:cDays, detail:`${yrs} year${yrs===1?'':'s'} as a client${yrs>=1?' — worth a testimonial ask':''}`, badge:'customer', companyId:co.id});
+      celebrations.push({name:co.name, avatar:null, type:'Client Anniversary', days:cDays, detail:`${yrs} year${yrs===1?'':'s'} as a client${yrs>=1?' - worth a testimonial ask':''}`, badge:'customer', companyId:co.id});
     }
   });
   celebrations.sort((a,b)=>a.days-b.days);
@@ -3749,7 +3749,7 @@ function renderTeamDirectory(){
             </div>
             <div>
               <div style="font-weight:700; font-size:14px;">${esc(u.name)}${isUserOutToday(u.id)?' <span style="color:var(--red-text); font-size:10.5px; font-weight:700;">· Out</span>':''}</div>
-              <div style="font-size:12px; color:var(--slate);">${role?esc(role.name):'No role'} · ${esc(u.department||'—')}</div>
+              <div style="font-size:12px; color:var(--slate);">${role?esc(role.name):'No role'} · ${esc(u.department||'-')}</div>
             </div>
           </div>
           <div style="font-size:12px; color:var(--slate); line-height:1.8;">
@@ -3789,7 +3789,7 @@ function renderTimeOffLogView(){
               <td><div class="lead-name">${esc(user?user.name:'Unknown')}</div></td>
               <td><span style="font-size:11px; font-weight:700; padding:3px 10px; border-radius:99px; background:${safeBgForWhiteText(t.color)}; color:#fff;">${t.label}</span></td>
               <td class="mono">${fmtDate(r.startDate)}${r.endDate && r.endDate!==r.startDate ? ' – '+fmtDate(r.endDate) : ''}</td>
-              <td class="src">${esc(r.notes||'—')}</td>
+              <td class="src">${esc(r.notes||'-')}</td>
               <td onclick="event.stopPropagation();">
                 ${canDecide ? `
                 <select onchange="decideTimeOff('${r.id}', this.value)" style="padding:6px 10px; border-radius:6px; border:1px solid var(--line); font-size:12px; font-weight:700;">
@@ -3860,9 +3860,9 @@ function renderIncidentReportsView(){
             <tr onclick="openEditIncident('${r.id}')">
               <td class="mono">${fmtDate(r.fileDate)}</td>
               <td class="src">${esc(r.type)}</td>
-              <td>${involved?esc(involved.name):esc(r.involvedOther||'—')}</td>
+              <td>${involved?esc(involved.name):esc(r.involvedOther||'-')}</td>
               <td><span class="badge ${r.investigationStatus==='Resolved'?'customer':'lead'}">${r.investigationStatus}</span></td>
-              <td class="src">${filer?esc(filer.name):'—'}</td>
+              <td class="src">${filer?esc(filer.name):'-'}</td>
             </tr>`;
           }).join('') : `<tr class="empty-row"><td colspan="5">Nothing on file.</td></tr>`}
         </tbody>
@@ -4031,7 +4031,7 @@ function renderTrainingView(){
       </table>
     </div>` : `<div class="feed-empty" style="margin-bottom:28px;">No mandatory courses set up yet. Click "Manage Mandatory Courses" to add your first one.</div>`}
 
-    <div style="font-size:15px; font-weight:700; color:var(--navy-deep); margin-bottom:4px;">Optional — free certifications</div>
+    <div style="font-size:15px; font-weight:700; color:var(--navy-deep); margin-bottom:4px;">Optional - free certifications</div>
     <p style="font-size:12px; color:var(--slate); margin-bottom:14px;">Pre-loaded free courses from HubSpot Academy, Semrush Academy, Google Skillshop, and LinkedIn Learning. Everyone tracks their own progress here.</p>
     ${optionalCourses.length ? optProviders.map(provider=>`
       <div class="panel" style="padding:16px 20px; margin-bottom:14px;">
@@ -4081,7 +4081,7 @@ function openManageCoursesModal(){
       ${mandatoryCourses.length ? mandatoryCourses.map(c=>`
         <div class="call-mini-item" style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
           <div>
-            <div>${c.provider?esc(c.provider)+' — ':''}${esc(c.name)}</div>
+            <div>${c.provider?esc(c.provider)+' - ':''}${esc(c.name)}</div>
             ${c.url ? `<a href="${safeHref(c.url)}" target="_blank" rel="noopener noreferrer" style="font-size:11px; color:var(--teal-text); font-weight:600;">Open Course ↗</a>` : `<span style="font-size:11px; color:var(--slate);">No link yet</span>`}
           </div>
           <div style="display:flex; gap:6px; flex-shrink:0;">
@@ -4142,7 +4142,7 @@ function openManageOptionalCoursesModal(){
     <div class="calls-mini" style="margin-bottom:14px;">
       ${optionalCourses.length ? optionalCourses.map(c=>`
         <div class="call-mini-item" style="display:flex; justify-content:space-between; align-items:center;">
-          <span>${c.provider?esc(c.provider)+' — ':''}${esc(c.name)}</span>
+          <span>${c.provider?esc(c.provider)+' - ':''}${esc(c.name)}</span>
           <button type="button" class="btn-small" onclick="deleteCourse('${c.id}')">Remove</button>
         </div>`).join('') : '<div class="call-mini-item" style="color:var(--slate);">No optional courses yet.</div>'}
     </div>
@@ -4191,9 +4191,9 @@ function renderCompaniesView(){
             return `
             <tr onclick="openEditCompany('${co.id}')">
               <td><div class="lead-name">${esc(co.name)}</div>${co.websiteUrl?`<div class="lead-sub">${esc(co.websiteUrl)}</div>`:''}</td>
-              <td class="src">${esc(co.industry||'—')}</td>
+              <td class="src">${esc(co.industry||'-')}</td>
               <td>${linkedContacts.length} contact${linkedContacts.length===1?'':'s'}</td>
-              <td class="src">${mgr?esc(mgr.name):'—'}</td>
+              <td class="src">${mgr?esc(mgr.name):'-'}</td>
               <td class="mono">${fmtDate(co.dateAdded)}</td>
             </tr>`;
           }).join('') : `<tr class="empty-row"><td colspan="5">No companies yet. Add a contact and a company record is created for you automatically, or add one directly here.</td></tr>`}
@@ -4466,10 +4466,10 @@ function companyPricingTabHTML(companyId){
   return `
     <div style="background:var(--paper); border:1px solid var(--line); border-radius:9px; padding:12px 14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
       <div style="font-size:12px; color:var(--slate);">Agency true internal hourly cost <span style="font-size:10.5px;">(Settings → Pricing)</span></div>
-      <div class="mono" style="font-weight:700; color:var(--teal-text);">${baseline.hourlyCost ? fmtMoneyDec(baseline.hourlyCost)+'/hr' : '— set your baseline first'}</div>
+      <div class="mono" style="font-weight:700; color:var(--teal-text);">${baseline.hourlyCost ? fmtMoneyDec(baseline.hourlyCost)+'/hr' : '- set your baseline first'}</div>
     </div>
 
-    <div class="field"><label>Service Tier</label><input type="text" id="cop_tier" placeholder="e.g. SEO Retainer — Growth Tier"></div>
+    <div class="field"><label>Service Tier</label><input type="text" id="cop_tier" placeholder="e.g. SEO Retainer - Growth Tier"></div>
 
     <div style="display:flex; border:1.5px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:14px;">
       <button type="button" id="cop_seg_hourly" onclick="setCompanyPricingType('${companyId}','HOURLY')" style="flex:1; padding:9px; background:var(--navy); color:#fff; font-size:12px; font-weight:700; border:none; cursor:pointer;">Hourly</button>
@@ -4610,7 +4610,7 @@ function renderPriceCalculatorView(){
           <div class="stat-card" style="padding:12px;"><div class="label">Annual Wages</div><h2 style="font-size:17px;">${fmtMoney(baseline.wages)}</h2></div>
           <div class="stat-card" style="padding:12px;"><div class="label">Annual Capacity</div><h2 style="font-size:17px;">${fmtMoney(baseline.capacity)}</h2></div>
           <div class="stat-card" style="padding:12px;"><div class="label">Billable Hrs/Yr</div><h2 style="font-size:17px;">${Math.round(baseline.billableHours).toLocaleString('en-US')}</h2></div>
-          <div class="stat-card" style="padding:12px; background:var(--teal-soft); border-color:var(--teal);"><div class="label">True Hourly Cost</div><h2 style="font-size:17px; color:var(--teal-text);">${baseline.hourlyCost?fmtMoneyDec(baseline.hourlyCost)+'/hr':'—'}</h2></div>
+          <div class="stat-card" style="padding:12px; background:var(--teal-soft); border-color:var(--teal);"><div class="label">True Hourly Cost</div><h2 style="font-size:17px; color:var(--teal-text);">${baseline.hourlyCost?fmtMoneyDec(baseline.hourlyCost)+'/hr':'-'}</h2></div>
         </div>
       </div>
 
@@ -4625,7 +4625,7 @@ function renderPriceCalculatorView(){
             ${companies.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}
           </select>
         </div>
-        <div class="field"><label>Service Tier</label><input type="text" id="pc_tier" placeholder="e.g. SEO Retainer — Growth Tier"></div>
+        <div class="field"><label>Service Tier</label><input type="text" id="pc_tier" placeholder="e.g. SEO Retainer - Growth Tier"></div>
         <div style="display:flex; border:1.5px solid var(--line); border-radius:8px; overflow:hidden; margin-bottom:14px;">
           <button type="button" id="pc_seg_hourly" onclick="setPcPricingType('HOURLY')" style="flex:1; padding:9px; background:var(--navy); color:#fff; font-size:12px; font-weight:700; border:none; cursor:pointer;">Hourly</button>
           <button type="button" id="pc_seg_flat" onclick="setPcPricingType('FLAT_RATE')" style="flex:1; padding:9px; background:var(--paper); color:var(--slate); font-size:12px; font-weight:700; border:none; border-left:1.5px solid var(--line); cursor:pointer;">Flat Rate</button>
@@ -4935,7 +4935,7 @@ function openQuoteDetail(id){
       <div class="field"><label>Final Client Price</label><input value="${fmtMoney(q.finalPrice)}" readonly></div>
     </div>
     <div class="field"><label>Saved</label><input value="${fmtDate(q.dateAdded)}" readonly></div>
-    ${q.status==='Rejected' && q.lossReason ? `<div class="field"><label>Loss Reason</label><input value="${esc(q.lossReason)}${q.lossNotes?' — '+esc(q.lossNotes):''}" readonly></div>` : ''}
+    ${q.status==='Rejected' && q.lossReason ? `<div class="field"><label>Loss Reason</label><input value="${esc(q.lossReason)}${q.lossNotes?' - '+esc(q.lossNotes):''}" readonly></div>` : ''}
     ${q.dealId ? `<p style="font-size:12px; color:var(--teal-text); font-weight:700;">Linked to a Deal in your pipeline (created when accepted).</p>` : ''}
   `;
   document.getElementById('modalFoot').innerHTML = `<button class="btn-danger" onclick="deletePriceCalcQuoteGlobal('${id}')">Delete</button><button class="btn-ghost" onclick="closeModal()">Close</button>`;
@@ -4967,8 +4967,8 @@ function renderProposalsView(){
             return `
             <tr onclick="openEditProposal('${p.id}')">
               <td><div class="lead-name">${esc(p.title)}</div></td>
-              <td class="src">${esc(co?co.name:'—')}</td>
-              <td class="src">${q ? esc(q.tier)+' · '+fmtMoney(q.finalPrice) : '—'}</td>
+              <td class="src">${esc(co?co.name:'-')}</td>
+              <td class="src">${q ? esc(q.tier)+' · '+fmtMoney(q.finalPrice) : '-'}</td>
               <td>
                 <span class="badge ${quoteStatusBadgeClass(p.status)}">${esc(p.status)}</span>
                 ${p.status==='Rejected' && p.lossReason ? `<div style="font-size:10.5px; color:var(--red-text); margin-top:3px;">${esc(p.lossReason)}</div>` : ''}
@@ -5023,7 +5023,7 @@ function proposalFormHTML(p){
   p = p || {title:'', companyId:'', quoteId:'', content:'', status:'Draft', followUpDate:'', lossReason:'', dealId:null};
   const companies = [...DATA.companies].sort((a,b)=>a.name.localeCompare(b.name));
   return `
-    ${fld('prop_title','Proposal Title',p.title,'e.g. SEO Retainer Proposal — Q3')}
+    ${fld('prop_title','Proposal Title',p.title,'e.g. SEO Retainer Proposal - Q3')}
     <div class="field-row">
       <div class="field"><label>Company</label>
         <select id="prop_companyId">
@@ -5105,7 +5105,7 @@ async function saveProposalForm(){
   if(status==='Sent' && followUpDate && !proposal.reminderId){
     const co = DATA.companies.find(c=>c.id===proposal.companyId);
     const reminder = { id: uid(), dateAdded: todayISO(), done:false, contactId:null,
-      text: `Follow up on proposal "${proposal.title}"${co?' — '+co.name:''}`, dueDate: followUpDate };
+      text: `Follow up on proposal "${proposal.title}"${co?' - '+co.name:''}`, dueDate: followUpDate };
     DATA.reminders.push(reminder);
     proposal.reminderId = reminder.id;
   }
@@ -5157,7 +5157,7 @@ function renderServiceRequestsView(){
             return `
             <tr onclick="openEditServiceRequest('${r.id}')">
               <td><div class="lead-name">${esc(r.title)}</div></td>
-              <td class="src">${esc(co?co.name:'—')}</td>
+              <td class="src">${esc(co?co.name:'-')}</td>
               <td><span class="badge ${r.priority==='High'?'hot':(r.priority==='Medium'?'lead':'prospect')}">${esc(r.priority)}</span></td>
               <td onclick="event.stopPropagation();">
                 <select onchange="setServiceRequestStatus('${r.id}', this.value)" style="padding:6px 10px; border-radius:6px; border:1px solid var(--line); font-size:12px; font-weight:700;">
@@ -5280,8 +5280,8 @@ function renderSupportTicketsView(){
             return `
             <tr onclick="openTicketDetail('${t.id}')">
               <td><div class="lead-name">${esc(t.subject)}</div></td>
-              <td class="src">${esc(co?co.name:'—')}</td>
-              <td class="src">${esc(t.category||'—')}</td>
+              <td class="src">${esc(co?co.name:'-')}</td>
+              <td class="src">${esc(t.category||'-')}</td>
               <td><span class="badge ${t.priority==='Urgent'||t.priority==='High'?'hot':'lead'}">${esc(t.priority)}</span></td>
               <td><span class="badge ${ticketStatusBadgeClass(t.status)}">${esc(t.status)}</span></td>
               <td class="mono">${fmtDate((t.updatedAt||t.dateAdded||'').slice(0,10))}</td>
@@ -5349,8 +5349,8 @@ function ticketDetailHTML(t){
   const contact = findPrimaryContactForCompany(t.companyId);
   return `
     <div class="field-row">
-      <div class="field"><label>Company</label><input value="${esc(co?co.name:'—')}" readonly></div>
-      <div class="field"><label>Contact</label><input value="${esc(contact?contact.name:'—')}" readonly></div>
+      <div class="field"><label>Company</label><input value="${esc(co?co.name:'-')}" readonly></div>
+      <div class="field"><label>Contact</label><input value="${esc(contact?contact.name:'-')}" readonly></div>
     </div>
     <div class="field-row">
       <div class="field"><label>Status</label>
@@ -5515,11 +5515,11 @@ function renderFormSubmissionsView(){
   const rows = [...DATA.formSubmissions].sort((a,b)=> (b.submittedAt||'').localeCompare(a.submittedAt||''));
   return `
     <div class="page-head">
-      <div><h1>Form Submissions</h1><p>The lead gen form and the newsletter signup form both land here first — nothing becomes a contact until you click to create it.</p></div>
+      <div><h1>Form Submissions</h1><p>The lead gen form and the newsletter signup form both land here first - nothing becomes a contact until you click to create it.</p></div>
       <div class="date-pill">${rows.filter(s=>s.status==='new').length} new</div>
     </div>
     <div class="panel" style="padding:14px 18px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-      <div style="font-size:12px; color:var(--slate);">${DATA.settings.formSubmissionsEndpointUrl ? 'Polling your relay endpoint for new submissions.' : 'No relay endpoint configured yet — set one up in Integrations, or add submissions manually.'}</div>
+      <div style="font-size:12px; color:var(--slate);">${DATA.settings.formSubmissionsEndpointUrl ? 'Polling your relay endpoint for new submissions.' : 'No relay endpoint configured yet - set one up in Integrations, or add submissions manually.'}</div>
       <div style="display:flex; gap:8px;">
         ${DATA.settings.formSubmissionsEndpointUrl ? `<button class="btn-small" onclick="checkForNewFormSubmissions(true)">${iconDownload()} Check for new submissions</button>` : `<button class="btn-small" onclick="switchView('integrations')">${iconGear()} Set up relay</button>`}
         <button class="btn-small" onclick="openNewSubmissionModal()">${iconPlus()} Add manually</button>
@@ -5533,7 +5533,7 @@ function renderFormSubmissionsView(){
             <tr onclick="openSubmissionDetail('${s.id}')">
               <td><span class="badge ${s.formSlug==='lead-gen'?'lead':'customer'}">${esc(formTypeLabel(s.formSlug))}</span></td>
               <td><div class="lead-name">${esc(s.fields.name||'(no name)')}</div></td>
-              <td class="src">${esc(s.fields.email||'—')}</td>
+              <td class="src">${esc(s.fields.email||'-')}</td>
               <td class="mono">${fmtDate((s.submittedAt||'').slice(0,10))}</td>
               <td>
                 ${s.status==='new' ? `<span class="badge hot">New</span>` : ''}
@@ -5592,7 +5592,7 @@ async function convertSubmissionToLead(id){
   const companyId = s.fields.company ? findOrCreateCompanyByName(s.fields.company) : null;
   const c = {
     id: uid(), name, company: s.fields.company||'', companyId, type:'lead',
-    stage:'New', source:'Website — Lead Gen Form',
+    stage:'New', source:'Website - Lead Gen Form',
     phone: s.fields.phone||'', email: s.fields.email||'',
     dealValue:0, followUpDate:null, followUpDone:false,
     dateAdded: todayISO(), lastModified: new Date().toISOString(),
@@ -5616,7 +5616,7 @@ async function addSubmissionToNewsletterList(id){
   if(!c){
     c = {
       id: uid(), name: s.fields.name || s.fields.email, company:'', companyId:null, type:'prospect',
-      stage:'', source:'Website — Newsletter Signup', phone:'', email: s.fields.email,
+      stage:'', source:'Website - Newsletter Signup', phone:'', email: s.fields.email,
       dealValue:0, followUpDate:null, followUpDone:false, dateAdded: todayISO(), lastModified: new Date().toISOString(),
       notes:[{text:'Created from a Tally newsletter signup submission.', date: todayISO()}],
       customFields:{}, tags:[], emailLists:[], services:[], profile: defaultProfile(), assignedTo:null,
@@ -5943,7 +5943,7 @@ function exportProposalToPDF(id){
   const win = window.open('', '_blank');
   if(!win){ showToast('Your browser blocked the popup, allow popups for this site and try again'); return; }
 
-  const bodyParagraphs = (p.content || '(No content written yet — edit this proposal to add it.)')
+  const bodyParagraphs = (p.content || '(No content written yet - edit this proposal to add it.)')
     .split(/\n{2,}/)
     .map(block => `<p>${esc(block).replace(/\n/g,'<br>')}</p>`)
     .join('');
@@ -6008,7 +6008,7 @@ function openCapabilitiesOnePagerModal(){
   document.getElementById('modalBody').innerHTML = `
     <div class="field"><label>Prepared for (optional)</label>
       <select id="cop_companyId">
-        <option value="">General — no specific company</option>
+        <option value="">General - no specific company</option>
         ${companies.map(co=>`<option value="${co.id}">${esc(co.name)}</option>`).join('')}
       </select>
     </div>
@@ -6245,7 +6245,7 @@ const DEFAULT_BRAND_GUIDELINES = {
   fontBody: 'DM Sans',
   fontMono: 'JetBrains Mono',
   headingRules: 'line-height:.92 on section headings, line-height:.9 on hero h1. Never leave line-height unset.',
-  faviconNote: 'favze-favicon.svg at https://favze.com/hubfs/favze-favicon.svg — never recolor or alter it.',
+  faviconNote: 'favze-favicon.svg at https://favze.com/hubfs/favze-favicon.svg - never recolor or alter it.',
   voiceNote: 'Confident, direct, no filler. No em dashes in any output, ever.',
   urlConventions: 'No .html extensions. Services: /services/[slug]. Articles: /articles/[pillar]/[slug]. Areas served: /areas-served/[county].',
   contentSeries: [
@@ -6268,7 +6268,7 @@ function renderBrandGuidelinesView(){
   const bg = DATA.brandGuidelines;
   return `
     <div class="page-head">
-      <div><h1>Brand Guidelines</h1><p>Favze's own brand system — reference this before creating any client-facing asset.</p></div>
+      <div><h1>Brand Guidelines</h1><p>Favze's own brand system - reference this before creating any client-facing asset.</p></div>
       <button class="btn-small" onclick="openEditBrandGuidelines()">${iconGear()} Edit</button>
     </div>
 
@@ -6385,7 +6385,7 @@ function openWikiDoc(id){
   const p = DATA.wikiPages.find(x=>x.id===id);
   if(!p) return;
   if(p.docUrl && isSafeHttpUrl(p.docUrl)){ window.open(p.docUrl, '_blank', 'noopener,noreferrer'); }
-  else if(p.docUrl){ showToast('Invalid document URL — must start with https://'); }
+  else if(p.docUrl){ showToast('Invalid document URL - must start with https://'); }
   else { openEditWikiPage(id); showToast('Add a Google Doc link first'); }
 }
 let editingWikiId = null;
@@ -6490,7 +6490,7 @@ function renderFeatureRequestsList(listKey){
                 <button class="btn-small">▲ ${r.votes||0}</button>
               </td>
               <td onclick="openEditFeatureRequest('${listKey}','${r.id}')"><div class="lead-name">${esc(r.title)}</div>${r.description?`<div class="lead-sub">${esc(r.description)}</div>`:''}</td>
-              <td class="src" onclick="openEditFeatureRequest('${listKey}','${r.id}')">${esc(r.category||'—')}</td>
+              <td class="src" onclick="openEditFeatureRequest('${listKey}','${r.id}')">${esc(r.category||'-')}</td>
               <td onclick="event.stopPropagation();">
                 <select onchange="setFeatureRequestStatus('${listKey}','${r.id}', this.value)" style="padding:6px 10px; border-radius:6px; border:1px solid var(--line); font-size:12px; font-weight:700;">
                   ${FEATURE_REQUEST_STATUSES.map(s=>`<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join('')}
@@ -6544,7 +6544,7 @@ function featureRequestFormHTML(r){
     ${taFld('fr_description','Description',r.description,'What is this and why does it matter')}
     <div class="field"><label>Category</label>
       <select id="fr_category">
-        <option value="">—</option>
+        <option value="">-</option>
         ${FEATURE_REQUEST_CATEGORIES.map(c=>`<option value="${c}" ${r.category===c?'selected':''}>${c}</option>`).join('')}
       </select>
     </div>
@@ -7113,7 +7113,8 @@ async function bulkApplyFollowUp(){
 }
 async function bulkDeleteSelected(type){
   const count = selectedContactIds.size;
-  if(!confirm(`Delete ${count} contact(s)? This can't be undone.`)) return;
+  const ok = await showConfirmModal({ title: 'Delete contacts', message: `Delete ${count} contact${count===1?'':'s'}? This cannot be undone.`, confirmLabel: 'Delete', danger: true });
+  if(!ok) return;
   DATA.contacts = DATA.contacts.filter(x=>!selectedContactIds.has(x.id));
   DATA.deals = DATA.deals.filter(d=>!selectedContactIds.has(d.contactId));
   selectedContactIds.clear();
@@ -7123,11 +7124,17 @@ async function bulkDeleteSelected(type){
 
 /* ===================== SAVED VIEWS ===================== */
 async function saveCurrentView(type){
-  const name = prompt('Name this view:', searchTerm);
-  if(!name) return;
-  DATA.savedViews.push({ id: uid(), name, view: type, searchTerm });
-  await saveData(); render();
-  showToast('View saved');
+  showPromptModal({
+    title: 'Save View',
+    fields: [{ id: 'name', label: 'View name', placeholder: 'e.g. Active leads', value: searchTerm }],
+    confirmLabel: 'Save',
+    onConfirm: async ({ name }) => {
+      if(!name) return;
+      DATA.savedViews.push({ id: uid(), name, view: type, searchTerm });
+      await saveData(); render();
+      showToast('View saved');
+    }
+  });
 }
 function applySavedView(id){
   const v = DATA.savedViews.find(x=>x.id===id);
@@ -7570,7 +7577,7 @@ function openTimeOffDetail(id){
   if(!req) return;
   const user = DATA.users.find(u=>u.id===req.userId);
   const t = timeOffTypeMeta(req.type);
-  document.getElementById('modalTitle').textContent = `${t.label} — ${user?user.name:'Unknown'}`;
+  document.getElementById('modalTitle').textContent = `${t.label} - ${user?user.name:'Unknown'}`;
   document.getElementById('modalBody').innerHTML = `
     <div class="field-row">
       <div class="field"><label>From</label><input value="${fmtDate(req.startDate)}" readonly></div>
@@ -8098,7 +8105,7 @@ function contentFormHTML(item, dateStr){
           </label>`;
         }).join('')}
         ${customers.filter(c=>!c.portalUid).length && !customers.filter(c=>c.portalUid).length ? `<span style="font-size:12px; color:var(--slate);">No clients have an approved portal account yet. Approve them in Settings → Integrations.</span>` : ''}
-        ${customers.filter(c=>c.portalUid).length === 0 && customers.filter(c=>!c.portalUid).length > 0 ? `<span style="font-size:12px; color:var(--slate);">Clients listed below don't have portal accounts yet — approve them in Settings → Integrations first.</span>` : ''}
+        ${customers.filter(c=>c.portalUid).length === 0 && customers.filter(c=>!c.portalUid).length > 0 ? `<span style="font-size:12px; color:var(--slate);">Clients listed below don't have portal accounts yet - approve them in Settings → Integrations first.</span>` : ''}
       </div>
     </div>
 
@@ -8152,7 +8159,7 @@ function contentFormHTML(item, dateStr){
         <div id="ct_threadCharCounts" style="font-size:11px; color:var(--slate); margin-top:6px;"></div>
       </div>
 
-      <div class="field"><label>Account to post as (reminder only)</label><input id="ct_accountHandle" value="${esc(item.accountHandle||'')}" placeholder="e.g. @clientname — this app can't switch accounts for you, so this is just a reminder of who to be logged in as"></div>
+      <div class="field"><label>Account to post as (reminder only)</label><input id="ct_accountHandle" value="${esc(item.accountHandle||'')}" placeholder="e.g. @clientname - this app can't switch accounts for you, so this is just a reminder of who to be logged in as"></div>
       <div class="field"><label>Media link (image/video hosted elsewhere)</label><input id="ct_media" value="${esc(item.mediaUrl)}" placeholder="Paste a link, this app can't host video files"></div>
       ${item.publishStatus && item.publishStatus!=='draft' ? `<div class="field"><label>Status</label><input value="${item.publishStatus==='published'?'Published':'Scheduled'}" readonly></div>` : ''}
     </div>
@@ -8412,7 +8419,7 @@ function renderCallsView(){
             <tr onclick="openCallDetail('${cl.id}')">
               <td><div class="lead-name">${esc(cl.contactName)}</div></td>
               <td class="src">${esc((cl.transcript||'').slice(0,70))}${cl.transcript && cl.transcript.length>70?'…':''}</td>
-              <td class="mono">${cl.duration?cl.duration+' min':'—'}</td>
+              <td class="mono">${cl.duration?cl.duration+' min':'-'}</td>
               <td class="mono">${fmtDate(cl.date)}</td>
             </tr>`).join('') : `<tr class="empty-row"><td colspan="4">No calls logged yet.</td></tr>`}
         </tbody>
@@ -8426,7 +8433,7 @@ function openCallDetail(id){
   document.getElementById('modalBody').innerHTML = `
     <div class="field-row">
       <div class="field"><label>Date</label><input value="${fmtDate(cl.date)}" readonly></div>
-      <div class="field"><label>Duration</label><input value="${cl.duration?cl.duration+' min':'—'}" readonly></div>
+      <div class="field"><label>Duration</label><input value="${cl.duration?cl.duration+' min':'-'}" readonly></div>
     </div>
     <div class="field"><label>Transcript</label><textarea rows="10" readonly>${esc(cl.transcript||'(no transcript)')}</textarea></div>
   `;
@@ -8909,14 +8916,18 @@ async function unlinkContactPortalUid(id){
   openEditModal(id);
 }
 function showPasteContactPortalUid(id){
-  const val = prompt("Paste this contact's Supabase Auth user id (from Authentication → Users in your Supabase dashboard). This only links them locally — it does not approve their account_requests row, so they still need approving separately if they haven't been already.");
-  if(val === null) return;
-  const trimmed = val.trim();
-  if(!trimmed) return;
-  const c = DATA.contacts.find(x=>x.id===id);
-  if(!c) return;
-  c.portalUid = trimmed;
-  saveData().then(()=>{ showToast('Linked to Favze Portal'); openEditModal(id); });
+  showPromptModal({
+    title: 'Link to Favze Portal',
+    fields: [{ id: 'uid', label: "Contact's Supabase Auth user ID", placeholder: 'Paste from Authentication - Users in Supabase' }],
+    confirmLabel: 'Link',
+    onConfirm: ({ uid: val }) => {
+      if(!val) return;
+      const c = DATA.contacts.find(x=>x.id===id);
+      if(!c) return;
+      c.portalUid = val;
+      saveData().then(()=>{ showToast('Linked to Favze Portal'); openEditModal(id); });
+    }
+  });
 }
 async function loadExtraDeliverablesForContact(c){
   const container = document.getElementById('extraDeliverables_'+c.id);
@@ -8935,7 +8946,7 @@ async function loadExtraDeliverablesForContact(c){
     const total = rows.reduce((sum,r)=> sum + (Number(r.data.value)||0), 0);
     container.innerHTML = rows.map(r=>`
       <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); font-size:12.5px;">
-        <div><b style="color:var(--ink);">${esc(r.data.title)}</b>${r.data.note?` — ${esc(r.data.note)}`:''}</div>
+        <div><b style="color:var(--ink);">${esc(r.data.title)}</b>${r.data.note?` - ${esc(r.data.note)}`:''}</div>
         <div style="display:flex; align-items:center; gap:8px;">
           <span class="mono">$${Number(r.data.value||0).toLocaleString()}</span>
           <button type="button" class="btn-small" onclick="deleteExtraDeliverable('${r.id}','${c.id}')">Remove</button>
@@ -8949,13 +8960,20 @@ async function loadExtraDeliverablesForContact(c){
 function openAddExtraDeliverableModal(contactId){
   const c = DATA.contacts.find(x=>x.id===contactId);
   if(!c || !c.portalUid){ showToast('Link this contact to a Portal account first'); return; }
-  if(!agencySupabaseSession || !agencyAccountRequest || !agencyAccountRequest.approved){ showToast('Connect your agency account in Settings → Integrations first'); return; }
-  const title = prompt('What was the extra deliverable? (e.g. "Extra Blog Post")');
-  if(!title || !title.trim()) return;
-  const valueStr = prompt('Value in dollars (e.g. 250)');
-  if(valueStr === null) return;
-  const value = Number(String(valueStr).replace(/[^0-9.]/g,'')) || 0;
-  addExtraDeliverable(contactId, title.trim(), value);
+  if(!agencySupabaseSession || !agencyAccountRequest || !agencyAccountRequest.approved){ showToast('Connect your agency account in Settings - Integrations first'); return; }
+  showPromptModal({
+    title: 'Log Extra Deliverable',
+    fields: [
+      { id: 'title', label: 'Deliverable', placeholder: 'e.g. Extra Blog Post' },
+      { id: 'value', label: 'Value (USD)', placeholder: 'e.g. 250', type: 'number' }
+    ],
+    confirmLabel: 'Log',
+    onConfirm: ({ title, value: valueStr }) => {
+      if(!title) return;
+      const value = Number(String(valueStr).replace(/[^0-9.]/g,'')) || 0;
+      addExtraDeliverable(contactId, title, value);
+    }
+  });
 }
 async function addExtraDeliverable(contactId, title, value){
   const c = DATA.contacts.find(x=>x.id===contactId);
@@ -8968,7 +8986,7 @@ async function addExtraDeliverable(contactId, title, value){
       data: { title, value, dateCompleted: todayISO() },
     });
     if(error) throw error;
-    showToast('Added — visible on their Portal now');
+    showToast('Added - visible on their Portal now');
     loadExtraDeliverablesForContact(c);
   }catch(err){ console.error(err); showToast('Could not add, check your connection'); }
 }
@@ -9033,7 +9051,7 @@ function modalFormHTML(c){
       <div style="border:1px solid var(--line); border-radius:9px; padding:12px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
         <div>
           <div style="font-size:12px; font-weight:700; color:var(--ink);">Favze Portal Access</div>
-          <div style="font-size:11.5px; color:var(--slate);">${c.portalUid ? 'Linked — this contact can sign in and see their content.' : 'Not linked yet. Usually set automatically when you approve their sign-up in Settings → Integrations.'}</div>
+          <div style="font-size:11.5px; color:var(--slate);">${c.portalUid ? 'Linked - this contact can sign in and see their content.' : 'Not linked yet. Usually set automatically when you approve their sign-up in Settings → Integrations.'}</div>
         </div>
         ${c.portalUid ? `<button type="button" class="btn-small" onclick="unlinkContactPortalUid('${c.id}')">Unlink</button>` : `<button type="button" class="btn-small" onclick="showPasteContactPortalUid('${c.id}')">Link manually</button>`}
       </div>
@@ -9044,7 +9062,7 @@ function modalFormHTML(c){
           <button type="button" class="btn-small" onclick="openAddExtraDeliverableModal('${c.id}')">${iconPlus()} Add</button>
         </div>
         <div id="extraDeliverables_${c.id}" style="font-size:12px; color:var(--slate);">Loading…</div>
-        <p style="font-size:10.5px; color:var(--slate); margin-top:8px;">Each item shows up individually, with its own price, in both the CRM and the client's Portal under Billing — itemized, no bundled surcharge.</p>
+        <p style="font-size:10.5px; color:var(--slate); margin-top:8px;">Each item shows up individually, with its own price, in both the CRM and the client's Portal under Billing - itemized, no bundled surcharge.</p>
       </div>
       ` : ''}
       ` : ''}
@@ -9307,7 +9325,7 @@ async function saveContactForm(){
   if(!editingId){
     const dup = DATA.contacts.find(x=> x.name.toLowerCase()===name.toLowerCase() && (x.company||'').toLowerCase()===company.toLowerCase());
     if(dup){
-      const proceed = confirm(`"${name}" (${company||'no company'}) looks like it might already exist as a ${typeLabel(dup.type)}. Add it anyway?`);
+      const proceed = await showConfirmModal({ title: 'Possible duplicate', message: `"${name}" (${company||'no company'}) looks like it might already exist as a ${typeLabel(dup.type)}. Add it anyway?`, confirmLabel: 'Add anyway' });
       if(!proceed) return;
     }
   }
@@ -9451,6 +9469,7 @@ function openNewProjectModal(){
     <button class="btn-ghost" onclick="closeModal()">Cancel</button>
     <button class="btn-primary" onclick="saveProjectForm()">Add project</button>`;
   document.getElementById('modalBackdrop').classList.add('open');
+  renderProjectTaskRows();
 }
 function openEditProject(id){
   editingProjectId = id;
@@ -9460,11 +9479,47 @@ function openEditProject(id){
   document.getElementById('modalBody').innerHTML = projectFormHTML(p);
   document.getElementById('modalFoot').innerHTML = `
     <button class="btn-danger" onclick="deleteProject('${id}')">Delete</button>
-    <div style="display:flex; gap:10px;"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveProjectForm()">Save changes</button></div>`;
+    <div style="display:flex; gap:10px;"><button class="btn-ghost" onclick="closeModal()">Cancel</button><button class="btn-ghost" onclick="syncProjectToPortal('${id}')">Sync to Portal</button><button class="btn-primary" onclick="saveProjectForm()">Save changes</button></div>`;
   document.getElementById('modalBackdrop').classList.add('open');
+  renderProjectTaskRows();
+}
+/* Re-renders the inline task list inside the project modal */
+function renderProjectTaskRows(){
+  const tasks = _editingProjectTasks;
+  const wrap = document.getElementById('p_taskRows');
+  if(!wrap) return;
+  if(!tasks.length){ wrap.innerHTML = `<p style="font-size:13px; color:var(--slate); padding:8px 0;">No tasks yet. Add one below.</p>`; return; }
+  wrap.innerHTML = tasks.map((t,i)=>`
+    <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line);">
+      <div style="flex:1;">
+        <div style="font-size:13px; font-weight:600; color:var(--navy-deep);">${esc(t.title)}</div>
+        ${t.dueDate ? `<div style="font-size:11px; color:var(--slate);">Due ${fmtDate(t.dueDate)}</div>` : ''}
+      </div>
+      <select style="font-size:12px; padding:4px 8px;" onchange="_editingProjectTasks[${i}].status=this.value">
+        <option value="Not Started" ${t.status==='Not Started'?'selected':''}>Not Started</option>
+        <option value="In Progress" ${t.status==='In Progress'?'selected':''}>In Progress</option>
+        <option value="Done" ${t.status==='Done'?'selected':''}>Done</option>
+        <option value="Blocked" ${t.status==='Blocked'?'selected':''}>Blocked</option>
+      </select>
+      <button class="btn-ghost" style="padding:4px 8px; font-size:12px; color:var(--danger);" onclick="_editingProjectTasks.splice(${i},1); renderProjectTaskRows();">Remove</button>
+    </div>`).join('');
+}
+let _editingProjectTasks = [];
+function addProjectTask(){
+  const titleEl = document.getElementById('p_newTaskTitle');
+  const dueEl   = document.getElementById('p_newTaskDue');
+  const title = titleEl ? titleEl.value.trim() : '';
+  if(!title){ showToast('Enter a task name first'); return; }
+  _editingProjectTasks.push({ id: uid(), title, dueDate: dueEl ? dueEl.value||null : null, status:'Not Started' });
+  if(titleEl) titleEl.value = '';
+  if(dueEl) dueEl.value = '';
+  renderProjectTaskRows();
 }
 function projectFormHTML(p){
-  p = p || {name:'',companyId:'',status:'Planning',startDate:'',dueDate:'',description:'',billingModel:'hourly',hourlyRate:0,flatMonthlyRate:0,budgetedHours:0};
+  p = p || {name:'',companyId:'',status:'Planning',startDate:'',dueDate:'',description:'',billingModel:'hourly',hourlyRate:0,flatMonthlyRate:0,budgetedHours:0,visibleToClient:false,assignedClients:[],projectTasks:[]};
+  _editingProjectTasks = (p.projectTasks||[]).map(t=>({...t}));
+  // contacts with a portal UID can be assigned
+  const portalContacts = DATA.contacts.filter(c=>c.portalUid);
   return `
     <div class="field"><label>Project name</label><input id="p_name" value="${esc(p.name)}" placeholder="e.g. Michiana hub page rebuild"></div>
     <div class="field-row">
@@ -9500,9 +9555,36 @@ function projectFormHTML(p){
     </div>
     <div class="field" id="p_flatWrap" style="${p.billingModel==='hourly'?'display:none;':''}">
       <label>Flat monthly rate ($)</label><input id="p_flatMonthlyRate" type="number" min="0" step="0.01" value="${p.flatMonthlyRate||0}">
-      <p style="font-size:11px; color:var(--slate); margin-top:4px;">Billed the same amount every month regardless of hours, revenue is calculated from this instead of hours × rate.</p>
+      <p style="font-size:11px; color:var(--slate); margin-top:4px;">Billed the same amount every month regardless of hours, revenue is calculated from this instead of hours x rate.</p>
     </div>
-    <div class="field"><label>Description</label><textarea id="p_desc" rows="3" placeholder="What this project covers">${esc(p.description)}</textarea></div>
+    <div class="field"><label>Description</label><textarea id="p_desc" rows="3" placeholder="What this project covers">${esc(p.description||'')}</textarea></div>
+    <hr style="margin:16px 0; border-color:var(--line);">
+    <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--slate); margin-bottom:12px;">Client Portal Visibility</div>
+    <div class="field" style="display:flex; align-items:center; gap:10px;">
+      <input type="checkbox" id="p_visibleToClient" ${p.visibleToClient?'checked':''} style="width:auto; margin:0;">
+      <label for="p_visibleToClient" style="margin:0; font-size:13px; cursor:pointer;">Show this project in the client portal</label>
+    </div>
+    ${portalContacts.length ? `
+    <div class="field">
+      <label>Assign to clients (portal accounts only)</label>
+      <div id="p_assignedClients" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">
+        ${portalContacts.map(c=>{
+          const on = (p.assignedClients||[]).includes(c.id);
+          return `<label style="display:flex; align-items:center; gap:5px; padding:5px 10px; border-radius:20px; background:${on?'var(--teal)':'var(--surface)'}; border:1.5px solid ${on?'var(--teal)':'var(--line)'}; cursor:pointer; font-size:12px; color:${on?'#fff':'var(--ink)'}; user-select:none;">
+            <input type="checkbox" class="assigned-proj-client-check" value="${c.id}" ${on?'checked':''} style="display:none;" onchange="this.closest('label').style.background=this.checked?'var(--teal)':'var(--surface)'; this.closest('label').style.borderColor=this.checked?'var(--teal)':'var(--line)'; this.closest('label').style.color=this.checked?'#fff':'var(--ink)';">
+            ${esc(c.name)}
+          </label>`;
+        }).join('')}
+      </div>
+    </div>` : `<p style="font-size:12px; color:var(--slate);">No portal accounts linked yet. Approve clients in Settings &rarr; Integrations to assign them here.</p>`}
+    <hr style="margin:16px 0; border-color:var(--line);">
+    <div style="font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--slate); margin-bottom:12px;">Project Tasks</div>
+    <div id="p_taskRows"></div>
+    <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+      <input id="p_newTaskTitle" placeholder="Task name" style="flex:1;">
+      <input id="p_newTaskDue" type="date" style="width:140px;">
+      <button class="btn-ghost" onclick="addProjectTask()">+ Add task</button>
+    </div>
   `;
 }
 async function saveProjectForm(){
@@ -9510,6 +9592,7 @@ async function saveProjectForm(){
   if(!name){ showToast('Project name is required'); return; }
   const companyId = document.getElementById('p_companyId').value || null;
   const companyObj = companyId ? DATA.companies.find(x=>x.id===companyId) : null;
+  const assignedClients = Array.from(document.querySelectorAll('.assigned-proj-client-check:checked')).map(el=>el.value);
   const payload = {
     name,
     companyId,
@@ -9522,6 +9605,9 @@ async function saveProjectForm(){
     budgetedHours: Number(document.getElementById('p_budgetedHours').value)||0,
     flatMonthlyRate: Number(document.getElementById('p_flatMonthlyRate').value)||0,
     description: document.getElementById('p_desc').value.trim(),
+    visibleToClient: document.getElementById('p_visibleToClient') ? document.getElementById('p_visibleToClient').checked : false,
+    assignedClients,
+    projectTasks: _editingProjectTasks.map(t=>({...t})),
   };
   if(editingProjectId){
     Object.assign(DATA.projects.find(x=>x.id===editingProjectId), payload);
@@ -9535,6 +9621,45 @@ async function deleteProject(id){
   DATA.projects = DATA.projects.filter(x=>x.id!==id);
   await saveData(); closeModal(); render();
   showToast('Project deleted');
+}
+function crmProjectToPortalShape(project){
+  return {
+    id: String(project.id),
+    name: project.name || '',
+    status: project.status || 'Planning',
+    startDate: project.startDate || null,
+    dueDate: project.dueDate || null,
+    description: project.description || '',
+    visibleToClient: project.visibleToClient === true,
+    assignedClients: (project.assignedClients || []).map(cid=>{
+      const c = DATA.contacts.find(x=>x.id===cid);
+      return c && c.portalUid ? c.portalUid : null;
+    }).filter(Boolean),
+    projectTasks: (project.projectTasks || []).map(t=>({
+      id: t.id,
+      title: t.title,
+      dueDate: t.dueDate || null,
+      status: t.status || 'Not Started',
+    })),
+  };
+}
+async function syncProjectToPortal(id){
+  if(!agencySupabaseSession){ showToast('Connect your agency account first'); return; }
+  const project = typeof id === 'string' ? DATA.projects.find(x=>x.id===id) : id;
+  if(!project){ showToast('Project not found'); return; }
+  const client = getSupabaseClient();
+  const assignedIds = project.assignedClients && project.assignedClients.length ? project.assignedClients : [];
+  const assignedUids = [];
+  assignedIds.forEach(cid=>{
+    const contact = DATA.contacts.find(c=>c.id===cid);
+    if(contact && contact.portalUid) assignedUids.push(contact.portalUid);
+  });
+  if(!assignedUids.length){ showToast('Assign this project to at least one client with a linked Portal account first'); return; }
+  const shape = crmProjectToPortalShape(project);
+  const rows = assignedUids.map(portalUid=>({ id: String(project.id), client_id: portalUid, data: shape, updated_at: new Date().toISOString() }));
+  const { error } = await client.from('client_projects').upsert(rows);
+  if(error){ showToast('Sync failed: ' + error.message); return; }
+  showToast('Project synced to portal');
 }
 
 /* ===================== MODAL: TASKS ===================== */
@@ -9869,7 +9994,7 @@ function refreshSettingsBody(){
 function renderIntegrationsPageView(){
   return `
     <div class="page-head">
-      <div><h1>Integrations</h1><p>Every outside connection this CRM can use — email sending, and the Tally form relay.</p></div>
+      <div><h1>Integrations</h1><p>Every outside connection this CRM can use - email sending, and the Tally form relay.</p></div>
     </div>
     <div class="panel" style="padding:22px;">
       ${settingsIntegrationsHTML()}
@@ -10401,7 +10526,7 @@ function settingsIntegrationsHTML(){
         <span class="badge ${agencySupabaseSession && agencyAccountRequest && agencyAccountRequest.approved ? 'customer' : agencySupabaseSession ? 'lead' : 'prospect'}">${agencySupabaseSession && agencyAccountRequest && agencyAccountRequest.approved ? 'Connected' : agencySupabaseSession ? 'Pending approval' : 'Not connected'}</span>
       </div>
       <p style="font-size:11.5px; color:var(--slate); margin-bottom:12px;">
-        The Content Calendar syncs to the client-facing Favze Portal through the same Supabase project used for photo storage. Signing up or signing in only creates a login — it does not grant access by itself. An already-approved agency account has to explicitly approve it below before it can see or sync anything. Nothing typed below is ever saved into this file, Supabase remembers your session in this browser.
+        The Content Calendar syncs to the client-facing Favze Portal through the same Supabase project used for photo storage. Signing up or signing in only creates a login - it does not grant access by itself. An already-approved agency account has to explicitly approve it below before it can see or sync anything. Nothing typed below is ever saved into this file, Supabase remembers your session in this browser.
       </p>
       ${agencySupabaseSession && agencyAccountRequest && agencyAccountRequest.approved ? `
       <div style="background:var(--teal-soft); border:1px solid var(--teal); border-radius:9px; padding:14px 16px; display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
@@ -10429,7 +10554,7 @@ function settingsIntegrationsHTML(){
                 <select id="link_contact_${r.user_id}" style="padding:6px 8px; border-radius:6px; border:1px solid var(--line); font-size:12px; max-width:180px;">
                   <option value="">Link to contact...</option>
                   <option value="__new__">+ New contact from this email</option>
-                  ${DATA.contacts.map(c=>`<option value="${c.id}">${esc(c.name)}${c.company?' — '+esc(c.company):''}</option>`).join('')}
+                  ${DATA.contacts.map(c=>`<option value="${c.id}">${esc(c.name)}${c.company?' - '+esc(c.company):''}</option>`).join('')}
                 </select>
                 ` : ''}
                 <button class="btn-small" onclick="denyAccountRequest('${r.user_id}')">Deny</button>
@@ -10448,7 +10573,7 @@ function settingsIntegrationsHTML(){
           <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line);">
             <div>
               <div style="font-size:12.5px; font-weight:700; color:var(--ink);">${esc(r.email||r.user_id)} ${isSelf ? '<span style="color:var(--slate); font-weight:500;">(you)</span>' : ''}</div>
-              <div style="font-size:11px; color:var(--slate);">${r.role==='agency'?'Agency account':`Client account${linkedContact ? ' — linked to '+esc(linkedContact.name) : ' — not linked to a contact'}`}</div>
+              <div style="font-size:11px; color:var(--slate);">${r.role==='agency'?'Agency account':`Client account${linkedContact ? ' - linked to '+esc(linkedContact.name) : ' - not linked to a contact'}`}</div>
             </div>
             ${isSelf ? `<span style="font-size:11px; color:var(--slate);">Can't revoke yourself</span>` : `<button class="btn-small" onclick="revokeAccountRequest('${r.user_id}','${r.role}')">Revoke</button>`}
           </div>`;
@@ -10476,7 +10601,7 @@ function settingsIntegrationsHTML(){
       ${agencyAuthMode==='signin' ? `
       <p style="font-size:11px; color:var(--slate); margin-top:8px;">This account is created once, either here via Sign Up, or in your Supabase dashboard (Authentication → Users → Add User). It's separate from any client's own portal login, and still needs approval either way.</p>
       ` : `
-      <p style="font-size:11px; color:var(--slate); margin-top:8px;">Creates a real login here, but it lands as pending — it gets zero access until an already-approved agency account approves it. If this is your very first agency account, approve it directly in Supabase using the setup SQL, since there's no other approved agency yet to do it from here.</p>
+      <p style="font-size:11px; color:var(--slate); margin-top:8px;">Creates a real login here, but it lands as pending - it gets zero access until an already-approved agency account approves it. If this is your very first agency account, approve it directly in Supabase using the setup SQL, since there's no other approved agency yet to do it from here.</p>
       `}
       `}
     </div>
@@ -10489,7 +10614,7 @@ function settingsIntegrationsHTML(){
       <p style="font-size:11.5px; color:var(--slate); margin-bottom:12px;">
         Catches submissions from the two public Tally forms (Lead Gen and Newsletter Signup) via a
         small relay server (see <span class="mono">server.js</span>), and pulls them into Form Submissions
-        for you to review and convert — nothing is created in the CRM automatically.
+        for you to review and convert - nothing is created in the CRM automatically.
       </p>
       <div class="field-row">
         <div class="field"><label>Relay Endpoint URL</label><input id="formsub_endpoint" value="${esc(DATA.settings.formSubmissionsEndpointUrl||'')}" placeholder="https://your-relay.com/api/submissions"></div>
@@ -10596,7 +10721,7 @@ async function denyAccountRequest(userId){
 // approved agency account -- there'd be nobody left who could re-approve you.
 async function revokeAccountRequest(userId, role){
   if(agencySupabaseSession && userId === agencySupabaseSession.user.id){
-    showToast("You can't revoke your own account from here — sign in as a different approved agency account to do that.");
+    showToast("You can't revoke your own account from here - sign in as a different approved agency account to do that.");
     return;
   }
   const client = getSupabaseClient();
@@ -10760,7 +10885,7 @@ function settingsPricingHTML(){
       <div class="stat-card" style="padding:14px;"><div class="label">Annual Wages</div><h2 style="font-size:19px;">${fmtMoney(baseline.wages)}</h2></div>
       <div class="stat-card" style="padding:14px;"><div class="label">Annual Capacity</div><h2 style="font-size:19px;">${fmtMoney(baseline.capacity)}</h2></div>
       <div class="stat-card" style="padding:14px;"><div class="label">Billable Hrs/Yr</div><h2 style="font-size:19px;">${Math.round(baseline.billableHours).toLocaleString('en-US')}</h2></div>
-      <div class="stat-card" style="padding:14px; background:var(--teal-soft); border-color:var(--teal);"><div class="label">True Hourly Cost</div><h2 style="font-size:19px; color:var(--teal-text);">${baseline.hourlyCost ? fmtMoneyDec(baseline.hourlyCost)+'/hr' : '—'}</h2></div>
+      <div class="stat-card" style="padding:14px; background:var(--teal-soft); border-color:var(--teal);"><div class="label">True Hourly Cost</div><h2 style="font-size:19px; color:var(--teal-text);">${baseline.hourlyCost ? fmtMoneyDec(baseline.hourlyCost)+'/hr' : '-'}</h2></div>
     </div>
     <p style="font-size:11px; color:var(--slate); margin-top:14px;">Pricing math (negation-free, no AI involved): Direct Delivery Cost ÷ (1 − Target Margin) + Adjusted Pass-Through, rounded up to the nearest whole dollar. Scope each service per company under Companies → open a company → Pricing Calculator tab.</p>
   `;
@@ -11123,6 +11248,54 @@ async function deleteUser(id){
   await saveData();
   refreshSettingsBody();
   showToast('Team member removed');
+}
+
+/* ===================== CONFIRM / PROMPT MODALS ===================== */
+// showConfirmModal: replaces native confirm() with an inline modal.
+// Returns a Promise<boolean> so callers can await it.
+function showConfirmModal({ title, message, confirmLabel = 'Confirm', danger = false }){
+  return new Promise(resolve => {
+    document.getElementById('modalHead').textContent = title;
+    document.getElementById('modalBody').innerHTML = `<p style="font-size:14px; color:var(--ink); line-height:1.55; margin:4px 0 2px;">${escHtml(message)}</p>`;
+    const btnClass = danger ? 'btn-danger' : 'btn-primary';
+    document.getElementById('modalFoot').innerHTML = `
+      <button class="btn-ghost" onclick="closeModal(); window._cmResolve && window._cmResolve(false);">Cancel</button>
+      <button class="${btnClass}" onclick="closeModal(); window._cmResolve && window._cmResolve(true);">${escHtml(confirmLabel)}</button>
+    `;
+    window._cmResolve = resolve;
+    document.getElementById('modalPanel').style.maxWidth = '420px';
+    document.getElementById('modalBackdrop').classList.add('open');
+  });
+}
+
+// showPromptModal: replaces native prompt() with an inline, non-blocking modal.
+// fields: [{id, label, placeholder, value, type}]
+// onConfirm(values): called with {id: trimmedValue, ...} when the user clicks OK.
+function showPromptModal({ title, fields, confirmLabel = 'OK', onConfirm }){
+  const fieldsHtml = fields.map(f=>`
+    <div style="margin-bottom:14px;">
+      <label style="display:block; font-size:12px; font-weight:700; color:var(--slate); text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px;">${escHtml(f.label)}</label>
+      <input id="pm_${escHtml(f.id)}" type="${escHtml(f.type||'text')}" value="${escHtml(f.value||'')}" placeholder="${escHtml(f.placeholder||'')}"
+        style="width:100%; padding:9px 11px; border:1.5px solid var(--border); border-radius:7px; font-size:14px; color:var(--ink); background:var(--paper); box-sizing:border-box;"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('pm-confirm-btn').click();}"
+      />
+    </div>
+  `).join('');
+  document.getElementById('modalHead').textContent = title;
+  document.getElementById('modalBody').innerHTML = `<div style="padding:4px 0 2px;">${fieldsHtml}</div>`;
+  document.getElementById('modalFoot').innerHTML = `
+    <button class="btn-ghost" onclick="closeModal()">Cancel</button>
+    <button id="pm-confirm-btn" class="btn-primary" onclick="
+      const vals = {};
+      ${fields.map(f=>`vals['${f.id}'] = (document.getElementById('pm_${f.id}')||{value:''}).value.trim();`).join('')}
+      closeModal();
+      window._pmCallback && window._pmCallback(vals);
+    ">${escHtml(confirmLabel)}</button>
+  `;
+  window._pmCallback = onConfirm;
+  document.getElementById('modalPanel').style.maxWidth = '440px';
+  document.getElementById('modalBackdrop').classList.add('open');
+  setTimeout(()=>{ const f = document.getElementById('pm_'+fields[0].id); if(f) f.focus(); }, 80);
 }
 
 /* ===================== TOAST ===================== */
@@ -11514,7 +11687,8 @@ function addSyncUI(){
         const text = await file.text();
         const parsed = JSON.parse(text);
         if(!parsed.contacts){ showToast('That file does not look like a Favze CRM backup.'); return; }
-        if(!confirm('Replace ALL current CRM data with this backup? This cannot be undone.')) return;
+        const ok = await showConfirmModal({ title: 'Restore backup', message: 'Replace ALL current CRM data with this backup? This cannot be undone.', confirmLabel: 'Restore', danger: true });
+        if(!ok) return;
         DATA = parsed; ensureDataShape();
         await saveData();
         showToast('Data imported. Syncing to cloud…');
