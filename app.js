@@ -1044,7 +1044,7 @@ async function loadData(){
     migrated = true;
   }
   if(migrated){ await saveData(true); } // migration saves are pre-auth; don't push
-  if(window.FAVZE_VIEW==='home' && !/(^|[#?&])(type=recovery|code=|access_token=)/.test(window.location.hash+window.location.search)){ window.location.replace(pageFor(DATA.profile.defaultView || 'dashboard')); return; }
+  if(window.FAVZE_VIEW==='home' && !/(^|[#?&])(type=recovery|type=invite|code=|access_token=)/.test(window.location.hash+window.location.search)){ window.location.replace(pageFor(DATA.profile.defaultView || 'dashboard')); return; }
   applySettings();
   applyBranding();
   renderSidebarNav();
@@ -11369,6 +11369,7 @@ async function connectAgencySupabase(){
   }
 }
 async function signUpAgencySupabase(){
+  { const e=document.getElementById('agency_login_error'); if(e){ e.style.color='var(--red-text)'; e.textContent='Accounts are invite only. Ask a Favze admin to send you an invitation.'; e.style.display='block'; } return; }
   const email = document.getElementById('agency_email').value.trim();
   const password = document.getElementById('agency_password').value;
   const errEl = document.getElementById('agency_login_error');
@@ -12103,7 +12104,7 @@ function renderGate(state){
   const signup = gateMode==='signup';
   const tab = (m,label)=>`<button type="button" onclick="gateSetMode('${m}')" style="flex:1; border:none; border-radius:7px; padding:8px 0; font-size:12.5px; font-weight:700; cursor:pointer; ${gateMode===m?'background:#04305f; color:#fff;':'background:transparent; color:#5b6b80;'}">${label}</button>`;
   el.innerHTML = gateShell(`
-    <div style="display:flex; gap:4px; background:#eef2f7; border-radius:10px; padding:4px; margin:14px 0 16px;">${tab('signin','Sign In')}${tab('signup','Sign Up')}</div>
+    <div style="height:14px;"></div>
     <p style="font-size:12.5px; color:#5b6b80; margin-bottom:16px;">${signup ? 'Create your account. An approved Favze agency account then approves it before the CRM opens.' : 'Sign in with your approved Favze agency account.'}</p>
     <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">Email</label><input id="gate_email" type="email" autocomplete="username" placeholder="you@favze.com" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
     <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">Password</label><input id="gate_password" type="password" autocomplete="${signup?'new-password':'current-password'}" placeholder="••••••••" onkeydown="if(event.key==='Enter')gateSubmit()" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
@@ -12126,7 +12127,7 @@ async function gateForgotPassword(){
   }catch(e){ gateMsg('Could not send the reset email. Try again.'); }
   finally{ if(btn) btn.disabled = false; }
 }
-function gateSetMode(m){ gateMode = m; gateNotice = ''; renderGate('form'); }
+function gateSetMode(m){ gateMode = 'signin'; gateNotice = ''; renderGate('form'); }
 function gateMsg(text, good){
   const m = document.getElementById('gate_msg');
   if(!m) return;
@@ -12244,7 +12245,8 @@ const _isRecoveryLink = (function handlePasswordReset(){
   const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
   const searchParams = new URLSearchParams(search);
   const codeVal = searchParams.get('code');
-  const isRecovery = hashParams.get('type') === 'recovery' || searchParams.get('type') === 'recovery' || (typeof codeVal === 'string' && codeVal.length > 10);
+  const isInvite = hashParams.get('type') === 'invite' || searchParams.get('type') === 'invite';
+  const isRecovery = isInvite || hashParams.get('type') === 'recovery' || searchParams.get('type') === 'recovery' || (typeof codeVal === 'string' && codeVal.length > 10);
   if(!isRecovery) return false;
   const client = getSupabaseClient();
   if(!client) return false;
@@ -12253,11 +12255,11 @@ const _isRecoveryLink = (function handlePasswordReset(){
   el.style.display = 'flex';
   el.innerHTML = gateShell('<p style="font-size:14px; color:#04305f; text-align:center; margin:20px 0;">Loading reset form...</p>');
   client.auth.onAuthStateChange((event) => {
-    if(event === 'PASSWORD_RECOVERY'){
+    if(event === 'PASSWORD_RECOVERY' || (isInvite && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION'))){
       const el2 = ensureGateEl();
       el2.style.display = 'flex';
       el2.innerHTML = gateShell(`
-        <p style="font-size:14px; font-weight:700; color:#04305f; margin:10px 0 8px;">Set a new password</p>
+        <p style="font-size:14px; font-weight:700; color:#04305f; margin:10px 0 8px;">${isInvite?'Create your password':'Set a new password'}</p>
         <p style="font-size:13px; color:#5b6b80; margin-bottom:16px;">Choose a strong password with at least 12 characters.</p>
         <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">New Password</label><input id="reset_pw" type="password" autocomplete="new-password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;" onkeydown="if(event.key==='Enter')gateSubmitPasswordReset()" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
         <div id="reset_msg" style="font-size:12.5px; margin-bottom:12px; min-height:16px; color:#b42318;"></div>
