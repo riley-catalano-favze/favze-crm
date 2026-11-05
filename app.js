@@ -11130,6 +11130,22 @@ function settingsIntegrationsHTML(){
       </div>
 
       <div style="border-top:1px solid var(--line); padding-top:14px; margin-bottom:16px;">
+        <div style="font-size:13px; font-weight:700; color:var(--ink); margin-bottom:4px;">Invite someone</div>
+        <p style="font-size:11.5px; color:var(--slate); margin-bottom:10px;">Sends an email with a link to create their password. Invited people are approved automatically.</p>
+        <div style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+          <div class="field" style="flex:1; min-width:200px; margin:0;"><label>Email</label><input id="invite_email" type="email" placeholder="name@company.com"></div>
+          <div class="field" style="margin:0;"><label>Access</label>
+            <select id="invite_kind" style="padding:9px 10px; border-radius:8px; border:1px solid var(--line); font-size:13px;">
+              <option value="client">Client (portal)</option>
+              <option value="agency">Agency (CRM)</option>
+            </select>
+          </div>
+          <button class="btn-primary" id="invite_btn" onclick="sendInvite()">Send invite</button>
+        </div>
+        <div id="invite_msg" style="font-size:12px; margin-top:8px; display:none;"></div>
+      </div>
+
+      <div style="border-top:1px solid var(--line); padding-top:14px; margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
           <div style="font-size:13px; font-weight:700; color:var(--ink);">Pending Approvals</div>
           <button class="btn-small" onclick="refreshAccountRequests().then(refreshSettingsBody)">${iconDownload()} Refresh</button>
@@ -11223,6 +11239,33 @@ function settingsIntegrationsHTML(){
       <p style="font-size:11.5px; color:var(--slate);">Every Contact still has a plain mailto: link that opens whatever your device's default mail app is (Outlook desktop, Apple Mail, anything), zero connection required.</p>
     </div>
   `;
+}
+
+async function sendInvite(){
+  const client = getSupabaseClient();
+  const emailEl = document.getElementById('invite_email');
+  const kindEl = document.getElementById('invite_kind');
+  const btn = document.getElementById('invite_btn');
+  const msg = document.getElementById('invite_msg');
+  if(!client || !emailEl) return;
+  const email = emailEl.value.trim();
+  const show = (text, ok)=>{ msg.style.display='block'; msg.style.color = ok ? 'var(--teal-text, #0f766e)' : 'var(--red-text)'; msg.textContent = text; };
+  if(!email){ show('Enter an email address.', false); return; }
+  btn.disabled = true; btn.textContent = 'Sending...';
+  try{
+    const { data, error } = await client.functions.invoke('invite-user', { body: { email, kind: kindEl.value } });
+    let errText = data && data.error;
+    if(error && !errText){
+      try{ const j = await error.context.json(); errText = j.error; }catch(_){ errText = error.message; }
+    }
+    if(errText){ show(errText, false); }
+    else {
+      show('Invite sent to ' + email + '.', true);
+      emailEl.value = '';
+      await refreshAccountRequests();
+    }
+  }catch(err){ console.error(err); show('Could not send the invite. Try again.', false); }
+  btn.disabled = false; btn.textContent = 'Send invite';
 }
 let agencySupabaseSession = null;
 let agencyAccountRequest = null;
