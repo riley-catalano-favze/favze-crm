@@ -12149,7 +12149,7 @@ async function gateSubmit(){
     let session = null;
     if(gateMode==='signup'){
       if(password.length < 12){ gateMsg('Use a password with at least 12 characters.'); return; }
-      const { data, error } = await client.auth.signUp({ email: email.trim(), password });
+      const { data, error } = await client.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: window.location.origin + window.location.pathname.replace(/[^/]*$/, "") } });
       if(error){ gateMsg(error.message || 'Could not create that account.'); return; }
       if(!data.session){
         gateMode = 'signin';
