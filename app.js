@@ -12163,7 +12163,7 @@ async function gateForgotPassword(){
   const btn = document.getElementById('gate_forgot');
   if(btn) btn.disabled = true;
   try{
-    const redirectTo = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+    const redirectTo = /\.favze\.com$/.test(window.location.hostname) ? 'https://crm.favze.com/' : window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
     const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
     if(error) gateMsg(error.message || 'Could not send the reset email.');
     else gateMsg('Reset link sent. Open it on this device to choose a new password.', true);
@@ -12297,6 +12297,17 @@ const _isRecoveryLink = (function handlePasswordReset(){
   const el = ensureGateEl();
   el.style.display = 'flex';
   el.innerHTML = gateShell('<p style="font-size:14px; color:#04305f; text-align:center; margin:20px 0;">Loading reset form...</p>');
+  // Safety net: a reset or invite link that lands on the wrong app is forwarded to the right one.
+  client.auth.onAuthStateChange((event, session) => {
+    if(!(event === 'PASSWORD_RECOVERY' || (isInvite && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')))) return;
+    if(!/\.favze\.com$/.test(window.location.hostname) || !session || !session.user) return;
+    setTimeout(async () => {
+      try{
+        const { data } = await client.from('account_requests').select('role').eq('user_id', session.user.id).maybeSingle();
+        if(data && data.role === 'client') window.location.replace('https://portal.favze.com/' + search + hash);
+      }catch(_){}
+    }, 0);
+  });
   client.auth.onAuthStateChange((event) => {
     if(event === 'PASSWORD_RECOVERY' || (isInvite && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION'))){
       const el2 = ensureGateEl();
