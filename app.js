@@ -1044,7 +1044,7 @@ async function loadData(){
     migrated = true;
   }
   if(migrated){ await saveData(true); } // migration saves are pre-auth; don't push
-  if(window.FAVZE_VIEW==='home'){ window.location.replace(pageFor(DATA.profile.defaultView || 'dashboard')); return; }
+  if(window.FAVZE_VIEW==='home' && !/(^|[#?&])(type=recovery|code=|access_token=)/.test(window.location.hash+window.location.search)){ window.location.replace(pageFor(DATA.profile.defaultView || 'dashboard')); return; }
   applySettings();
   applyBranding();
   renderSidebarNav();
@@ -12108,8 +12108,23 @@ function renderGate(state){
     <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">Email</label><input id="gate_email" type="email" autocomplete="username" placeholder="you@favze.com" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
     <div style="text-align:left; margin-bottom:12px;"><label style="font-size:11.5px; font-weight:700; color:#04305f;">Password</label><input id="gate_password" type="password" autocomplete="${signup?'new-password':'current-password'}" placeholder="••••••••" onkeydown="if(event.key==='Enter')gateSubmit()" style="width:100%; margin-top:4px; padding:10px 12px; border:1px solid #d5dce6; border-radius:9px; font-size:14px;"></div>
     <div id="gate_msg" style="font-size:12.5px; margin-bottom:12px; min-height:16px; color:#b42318;">${esc(gateNotice)}</div>
-    <button id="gate_btn" type="button" onclick="gateSubmit()" style="width:100%; padding:12px; border:none; border-radius:9px; background:#04305f; color:#fff; font-weight:700; font-size:14px; cursor:pointer;">${signup?'Create Account':'Sign In'}</button>`);
+    <button id="gate_btn" type="button" onclick="gateSubmit()" style="width:100%; padding:12px; border:none; border-radius:9px; background:#04305f; color:#fff; font-weight:700; font-size:14px; cursor:pointer;">${signup?'Create Account':'Sign In'}</button>${signup?'':'<button id="gate_forgot" type="button" onclick="gateForgotPassword()" style="width:100%; margin-top:12px; padding:6px; border:none; background:none; color:#064187; font-weight:700; font-size:12.5px; cursor:pointer; text-decoration:underline;">Forgot password?</button>'}`);
   gateNotice = '';
+}
+async function gateForgotPassword(){
+  const email = ((document.getElementById('gate_email')||{}).value||'').trim();
+  if(!email){ gateMsg('Enter your email above, then tap Forgot password?.'); return; }
+  const client = getSupabaseClient();
+  if(!client){ gateMsg('Could not reach the sign-in service. Check your connection.'); return; }
+  const btn = document.getElementById('gate_forgot');
+  if(btn) btn.disabled = true;
+  try{
+    const redirectTo = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+    if(error) gateMsg(error.message || 'Could not send the reset email.');
+    else gateMsg('Reset link sent. Open it on this device to choose a new password.', true);
+  }catch(e){ gateMsg('Could not send the reset email. Try again.'); }
+  finally{ if(btn) btn.disabled = false; }
 }
 function gateSetMode(m){ gateMode = m; gateNotice = ''; renderGate('form'); }
 function gateMsg(text, good){
@@ -12219,7 +12234,7 @@ async function gateSubmitPasswordReset(){
   const {error} = await c.auth.updateUser({password: pw});
   if(error){ msg.textContent=error.message||'Could not update password.'; btn.disabled=false; btn.style.opacity='1'; return; }
   msg.style.color='#067647'; msg.textContent='Password updated. Signing you in...';
-  setTimeout(()=>{ window.history.replaceState(null,'',window.location.pathname); applyAuthGate(); },1200);
+  setTimeout(()=>{ window.location.replace(window.location.pathname); },1200);
 }
 const _isRecoveryLink = (function handlePasswordReset(){
   // Support both hash-based (#type=recovery) and query-param-based (?code=...) reset links.
